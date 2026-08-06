@@ -167,28 +167,67 @@ class Tournament(commands.Cog):
         tournament_data["players"] = roster_data
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
+        # Group players by division
         divisions = {}
         for player_name, info in roster_data.items():
             div = info.get("age_division", "General")
             divisions.setdefault(div, []).append(player_name)
 
-        embed = discord.Embed(
+        embeds_to_send = []
+        current_embed = discord.Embed(
             title=f"📋 Roster Uploaded — {tournament_data['tournament_name']}",
             description=f"Successfully loaded **{len(roster_data)}** registered players.",
             color=discord.Color.green()
         )
+        current_char_count = len(current_embed.title or "") + len(current_embed.description or "")
 
         for div_name, p_list in divisions.items():
-            preview = ", ".join(p_list[:10])
-            if len(p_list) > 10:
-                preview += f" ...and {len(p_list) - 10} more"
-            embed.add_field(
-                name=f"{div_name} ({len(p_list)})",
-                value=preview or "None",
-                inline=False
-            )
+            # Format vertical numbered list
+            lines = [f"{idx}. {p}" for idx, p in enumerate(p_list, 1)]
 
-        await interaction.followup.send(embed=embed)
+            # Chunk vertical lines into field values under 1000 characters (Discord field max is 1024)
+            chunks = []
+            current_chunk = []
+            current_chunk_len = 0
+
+            for line in lines:
+                if current_chunk_len + len(line) + 1 > 1000:
+                    chunks.append("\n".join(current_chunk))
+                    current_chunk = [line]
+                    current_chunk_len = len(line)
+                else:
+                    current_chunk.append(line)
+                    current_chunk_len += len(line) + 1
+            if current_chunk:
+                chunks.append("\n".join(current_chunk))
+
+            # Attach chunks as fields
+            for i, chunk in enumerate(chunks):
+                if len(chunks) == 1:
+                    field_name = f"🏆 {div_name} ({len(p_list)})"
+                else:
+                    field_name = f"🏆 {div_name} ({len(p_list)}) — Part {i+1}/{len(chunks)}"
+
+                field_len = len(field_name) + len(chunk)
+
+                # Split into a new Embed if character count exceeds ~1800 or fields exceed 20
+                if current_char_count + field_len > 1800 or len(current_embed.fields) >= 20:
+                    embeds_to_send.append(current_embed)
+                    current_embed = discord.Embed(
+                        title=f"📋 Roster (Continued) — {tournament_data['tournament_name']}",
+                        color=discord.Color.green()
+                    )
+                    current_char_count = len(current_embed.title or "")
+
+                current_embed.add_field(name=field_name, value=chunk, inline=False)
+                current_char_count += field_len
+
+        if len(current_embed.fields) > 0 or not embeds_to_send:
+            embeds_to_send.append(current_embed)
+
+        # Send all generated embeds sequentially
+        for embed in embeds_to_send:
+            await interaction.followup.send(embed=embed)
 
     @app_commands.command(
         name="upload_pairing",
