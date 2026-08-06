@@ -9,7 +9,7 @@ class Parser:
 
     def parse_meta(self):
         html_title = self.soup.find("title").get_text()
-        report_type, tournament_name, date_time = [t.strip() for t in html_title.split('-')]
+        report_type, tournament_name, date_time = [t.strip() for t in html_title.split(' - ')]
         organizer_name = self.soup.select_one("table.footer tr td:nth-child(2)").get_text(strip=True)
         print()
         print(f"Report type:            {report_type}")
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         config = json.load(f)
 
     TOM_path = config["TOM_DATA_path"]
-    with open(os.path.join(TOM_path, "data", "reports", "testingroster.html"), "r", encoding="utf-8") as file:
+    with open("data/testingroster.html", "r", encoding="utf-8") as file:
         html_content = file.read()
     parser = Parser(html_content)
     parser.parse_meta()
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     print(parser.parse_player_list())
     print()
 
-    with open(os.path.join(TOM_path, "data", "reports", "testingpairings.html"), "r", encoding="utf-8") as file:
+    with open("data/testingpairings.html", "r", encoding="utf-8") as file:
         html_content = file.read()
     parser = Parser(html_content)
     print("parse_pairing() output:")
