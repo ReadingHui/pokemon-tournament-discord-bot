@@ -1,97 +1,85 @@
-# 🏆 Discord Tournament Bot
-
-A specialized Discord bot for tournament management. It parses HTML roster and pairing reports (e.g., from tournament software) and provides real-time thread-scoped tournament updates, player lookups with autocomplete, and round statistics.
+Here are the updated `README.md` and Discord announcement post incorporating the new standings commands and updated pairing layout.
 
 ---
 
-## 🚀 Installation & Setup
+### `README.md`
 
-### 1. Install Dependencies
+```markdown
+# 🏆 Tournament Discord Bot
 
-Ensure you have Python 3.10+ installed, then install the required Python packages:
+A Discord bot for managing Swiss card game tournaments. Parse HTML export reports from tournament software directly inside thread channels to publish pairings, standings, and player rosters.
 
-```bash
-pip install -r requirements.txt
+## 🚀 Features
 
-```
+* **Thread-Isolated Tournaments:** Create dedicated threads per tournament to keep main channels clean.
+* **HTML Parsing:** Directly parses exported Roster, Pairings, and Standings HTML reports.
+* **Monospace Padded Alignment:** Formats table numbers with fixed-width spacing so player names align cleanly.
+* **Player Self-Service Commands:** Players can look up their exact pairing or rank/tiebreakers privately (`ephemeral`).
+* **Discord Pagination & Chunking:** Multi-embed auto-chunking prevents Discord 2,000-character limit overflows on large events.
 
-### 2. Configure Environment Variables
+---
 
-Create a `.env` file in the project root directory with the following variables:
+## 🛠️ Commands
 
-```env
-DISCORD_TOKEN=your_discord_bot_token_here
-DEV_GUILD_ID=your_test_server_id_here
+### 🛡️ Organizer Commands (Requires Admin or `Tournament Organizer` Role)
 
-```
+| Command | Description |
+| :--- | :--- |
+| `/create_tournament <name>` | Creates a new tournament thread and initializes state. |
+| `/upload_roster <attachment>` | Uploads roster `.html` report and posts player lists by division. |
+| `/upload_pairing <attachment>` | Uploads pairings `.html` report. Formats lists alphabetically with padded table tags. |
+| `/upload_standing <attachment>` | Uploads standings `.html` report. Posts ranked standings per division. |
+| `/delete_tournament` | Deletes tournament state and removes the active thread. |
 
-* **`DISCORD_TOKEN`**: Your bot token from the Discord Developer Portal.
-* **`DEV_GUILD_ID`**: (Optional) Server ID for instant slash command synchronization during development.
+### 👤 Player Commands (Usable by Anyone in Tournament Thread)
 
-### 3. Discord Developer Portal Configuration
+| Command | Description |
+| :--- | :--- |
+| `/my_match <player_name>` | Displays active round table number, opponent, and current record privately. |
+| `/check_standing <player_name>` | Displays current rank, match points, record, and tiebreaker percentages privately. |
 
-1. Go to the [Discord Developer Portal](https://www.google.com/search?q=https://discord.com/developers/applications).
-2. Select your Application $\rightarrow$ **Bot** $\rightarrow$ Enable **Message Content Intent** under *Privileged Gateway Intents*.
-3. Go to **OAuth2 $\rightarrow$ URL Generator**.
-* **Scopes:** `bot`, `applications.commands`
-* **Bot Permissions:** `Send Messages`, `Create Public Threads`, `Send Messages in Threads`, `Read Message History`
+---
 
+## 📁 How File Uploads Work
 
-4. Copy the generated link and invite the bot to your server.
-
-### 4. Role Setup
-
-Create a role named **`Tournament Organizer`** on your Discord server. Members with this role (or users with **Administrator** permissions) will be authorized to execute tournament administration commands.
-
-### 5. Launch the Bot
-
-```bash
-python main.py
+1. Generate a **Roster**, **Pairings**, or **Standings** report in your tournament management software.
+2. When the report opens in your browser, copy the local file path from the URL bar (e.g., `file:///C:/Users/.../pairings.html`).
+3. In Discord, run `/upload_roster`, `/upload_pairing`, or `/upload_standing`.
+4. Paste the path into the attachment file selector dialog and submit.
 
 ```
 
 ---
 
-## 🛠️ How Commands Work
+### Discord Announcement / Guide Post
 
-All tournament states are bound to **Discord Threads**, isolating each tournament's data to its dedicated discussion space.
+📁 **Tournament Commands & Upload Guide**
 
-### 👑 Administrative Commands
-
-*Requires Server Administrator permissions or the `Tournament Organizer` role.*
-
-| Command | Arguments | Context | Description |
-| --- | --- | --- | --- |
-| `/create_tournament` | `name: string` | Server Text Channel | Creates a new public thread (e.g., `🏆 Tournament Name`) with a welcome message containing the organizer's tag and timestamp. Initializes tournament storage. |
-| `/upload_roster` | `roster: attachment` | Inside Tournament Thread | Uploads and parses a `.html` roster report. Displays registered player counts broken down by age/division. |
-| `/upload_pairing` | `pairing: attachment` | Inside Tournament Thread | Uploads and parses a `.html` pairing report for the current round. Updates current standings and active table numbers. |
-| `/delete_tournament` | *None* | Inside Tournament Thread | Deletes the JSON storage file associated with the thread and permanently removes the Discord thread. |
-
-### 👥 Player Commands
-
-*Available to all server members.*
-
-| Command | Arguments | Context | Description |
-| --- | --- | --- | --- |
-| `/my_match` | `player_name: string` | Inside Tournament Thread | Queries the active round pairing for a given player. Displays assigned table, opponent, and current record in an ephemeral message. |
-
-> **💡 Interactive Features:**
-> * **Player Name Autocomplete:** Typing into `/my_match` dynamically autocompletes player names based on the active thread's uploaded roster.
-> * **Error Handling:** If an unreadable or incorrect HTML file is uploaded to `/upload_roster` or `/upload_pairing`, the bot catches parsing failures and returns an error without crashing.
-> 
-> 
+Here is how to upload files and use player commands during events!
 
 ---
 
-## 📁 Project Structure
+### 🛡️ For Tournament Organizers
 
-```text
-├── main.py                # Bot entrypoint & command tree synchronization
-├── .env                   # Environment variables (token, dev guild ID)
-├── requirements.txt       # Python dependencies
-├── utils/
-│   ├── parser.py          # HTML parser for rosters and pairings
-│   └── storage.py         # JSON storage utilities (thread-ID keyed)
-├── cogs/
-│   └── tournament.py      # Slash commands, permissions, and autocomplete logic
-└── data/                  # Local storage for thread JSON databases
+**How to Upload Reports:**
+
+1. Generate the **Roster**, **Pairings**, or **Standings** report in your tournament software.
+2. Copy the file path directly from your web browser's address bar (`file:///C:/...`).
+3. Run the upload command in the tournament thread, click the file box, paste the path (`Ctrl + V`), and hit Enter!
+
+**Upload Commands:**
+
+* `/upload_roster` — Upload initial player registrations.
+* `/upload_pairing` — Upload round pairings. Displays an alphabetically sorted roster with fixed-width aligned table numbers (`Table 1  `, `Bye      `).
+* `/upload_standing` — Upload standings. Updates overall rankings and tiebreakers for all divisions.
+
+---
+
+### 👤 For Players
+
+You can check your match assignments and tiebreaker standings privately inside the tournament thread at any time:
+
+* ⚔️ `/my_match` — Auto-completes your name and shows your current **Table Number**, **Opponent**, and **Record**.
+* 📊 `/check_standing` — Shows your **Rank**, **Match Points**, **Record**, **Opponents' Win %**, and **Opponents' Opponents' Win %**.
+
+*(Note: Both player lookup commands respond privately to you so they won't spam the thread!)*
