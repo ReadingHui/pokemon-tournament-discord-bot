@@ -212,11 +212,41 @@ class Tournament(commands.Cog):
         delete_tournament_by_thread(interaction.guild_id, thread.id)
         await thread.delete()
 
+    async def player_name_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocompletes player names based on saved roster data in the thread."""
+        if not isinstance(interaction.channel, discord.Thread):
+            return []
+
+        tournament_data = load_tournament_by_thread(interaction.guild_id, interaction.channel.id)
+        if not tournament_data:
+            return []
+
+        # Get player list from roster; fall back to current round pairings if roster was skipped
+        players = list(tournament_data.get("players", {}).keys())
+        if not players:
+            current_round = str(tournament_data.get("current_round", 0))
+            round_pairings = tournament_data.get("rounds", {}).get(current_round, {})
+            for div_players in round_pairings.values():
+                players.extend(div_players.keys())
+
+        # Case-insensitive substring match limited to Discord's 25-choice max limit
+        matching_players = [
+            app_commands.Choice(name=name, value=name)
+            for name in players
+            if current.lower() in name.lower()
+        ]
+        return matching_players[:25]
+
     @app_commands.command(
         name="my_match",
         description="Lookup your match pairing for the active round in this thread."
     )
     @app_commands.describe(player_name="Your full registered player name")
+    @app_commands.autocomplete(player_name=player_name_autocomplete)
     async def my_match(self, interaction: discord.Interaction, player_name: str):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
