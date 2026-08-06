@@ -31,10 +31,11 @@ class Parser:
         return rows
 
     def parse_player_list(self):
-        headers = [col.get_text().replace('\xa0', ' ') for col in self.soup.select_one("table.players_table thead tr").find_all("th")]
+        headers = [col.get_text().replace('\xa0', ' ') for col in self.soup.select_one("table.players_table tr").find_all("th")]
+        print(f"Header: {headers}")
         name_idx = headers.index('Name')
         age_division_idx = headers.index("Age Division")
-        static_seat_idx = headers.index("Static Seat")
+        static_seat_idx = headers.index("Static Seat") if "Static Seat" in headers else ""            
 
         players = {}
         rows = self.soup.select(".players_table tbody tr")
