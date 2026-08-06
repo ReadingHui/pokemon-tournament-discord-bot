@@ -18,11 +18,9 @@ def is_tournament_admin():
         if not interaction.guild or not isinstance(interaction.user, discord.Member):
             return False
 
-        # 1. Server Administrators always pass
         if interaction.user.guild_permissions.administrator:
             return True
 
-        # 2. Users with the designated TO role pass
         return any(role.name == TO_ROLE_NAME for role in interaction.user.roles)
 
     return app_commands.check(predicate)
@@ -101,12 +99,19 @@ class Tournament(commands.Cog):
         }
         save_tournament_by_thread(interaction.guild_id, thread.id, tournament_data)
 
+        # Generate Unix timestamp for Discord localized date display
+        created_timestamp = int(discord.utils.utcnow().timestamp())
+
         await interaction.followup.send(
             f"✅ Tournament **{name}** created! Manage it in thread: {thread.mention}"
         )
+
+        # Thread Welcome Message with Organizer & Timestamp
         await thread.send(
             f"🏆 **Welcome to {name}!**\n"
-            f"Run `/upload_roster` and `/upload_pairing` directly in this thread."
+            f"👤 **Organizer:** {interaction.user.mention} (`{interaction.user.name}`)\n"
+            f"📅 **Created On:** <t:{created_timestamp}:F>\n\n"
+            f"Run `/upload_roster` and `/upload_pairing` directly in this thread to manage rounds."
         )
 
     @app_commands.command(
@@ -133,22 +138,30 @@ class Tournament(commands.Cog):
 
         if not roster.filename.endswith((".html", ".htm")):
             await interaction.response.send_message(
-                "❌ Please attach a valid `.html` roster file.",
+                "❌ Invalid file type! Please attach a `.html` roster report.",
                 ephemeral=True
             )
             return
 
         await interaction.response.defer(thinking=True)
 
-        html_bytes = await roster.read()
-        html_content = html_bytes.decode("utf-8", errors="ignore")
+        try:
+            html_bytes = await roster.read()
+            html_content = html_bytes.decode("utf-8", errors="ignore")
 
-        parser = Parser(html_content)
-        parser.parse_meta()
-        roster_data = parser.parse_player_list()
+            parser = Parser(html_content)
+            parser.parse_meta()
+            roster_data = parser.parse_player_list()
 
-        if not roster_data:
-            await interaction.followup.send("❌ Failed to parse roster HTML.", ephemeral=True)
+            if not roster_data or not isinstance(roster_data, dict):
+                raise ValueError("Parsed roster content is empty or malformed.")
+
+        except Exception:
+            await interaction.followup.send(
+                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid roster HTML report. "
+                "Please verify you selected the correct file.",
+                ephemeral=True
+            )
             return
 
         tournament_data["players"] = roster_data
@@ -161,7 +174,7 @@ class Tournament(commands.Cog):
 
         embed = discord.Embed(
             title=f"📋 Roster Uploaded — {tournament_data['tournament_name']}",
-            description=f"Loaded **{len(roster_data)}** total players.",
+            description=f"Successfully loaded **{len(roster_data)}** registered players.",
             color=discord.Color.green()
         )
 
@@ -201,25 +214,36 @@ class Tournament(commands.Cog):
 
         if not pairing.filename.endswith((".html", ".htm")):
             await interaction.response.send_message(
-                "❌ Please attach a valid `.html` pairings file.",
+                "❌ Invalid file type! Please attach a `.html` pairings report.",
                 ephemeral=True
             )
             return
 
         await interaction.response.defer(thinking=True)
 
-        html_bytes = await pairing.read()
-        html_content = html_bytes.decode("utf-8", errors="ignore")
+        try:
+            html_bytes = await pairing.read()
+            html_content = html_bytes.decode("utf-8", errors="ignore")
 
-        parser = Parser(html_content)
-        pairings_data = parser.parse_pairing()
+            parser = Parser(html_content)
+            pairings_data = parser.parse_pairing()
 
-        if not pairings_data:
-            await interaction.followup.send("❌ Failed to parse pairings HTML.", ephemeral=True)
+            if not pairings_data or not isinstance(pairings_data, dict):
+                raise ValueError("Parsed pairings content is empty or malformed.")
+
+            round_num = list(pairings_data.keys())[0]
+            round_info = pairings_data[round_num]
+
+            if not round_info:
+                raise ValueError("No pairing details found in parsed round data.")
+
+        except Exception:
+            await interaction.followup.send(
+                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid pairings HTML report. "
+                "Please check if you uploaded a roster file by mistake.",
+                ephemeral=True
+            )
             return
-
-        round_num = list(pairings_data.keys())[0]
-        round_info = pairings_data[round_num]
 
         tournament_data["current_round"] = int(round_num)
         tournament_data["rounds"][str(round_num)] = round_info
