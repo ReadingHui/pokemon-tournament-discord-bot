@@ -294,7 +294,10 @@ class Tournament(commands.Cog):
             for p_name, p_data in sorted_players:
                 tbl = str(p_data.get("table", "N/A")).strip()
                 table_str = f"Table {tbl}" if tbl.lower() != "bye" else "Bye"
-                lines.append(f"`{table_str}`\t**{p_name}**")
+                
+                # Left-align and pad to 9 characters inside the inline code block
+                table_padded = f"{table_str:<9}"
+                lines.append(f"`{table_padded}` **{p_name}**")
 
             # Chunk into fields <= 1000 characters
             chunks = []
