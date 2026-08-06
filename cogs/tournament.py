@@ -278,22 +278,65 @@ class Tournament(commands.Cog):
         tournament_data["rounds"][str(round_num)] = round_info
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
-        embed = discord.Embed(
+        embeds_to_send = []
+        current_embed = discord.Embed(
             title=f"⚔️ Round {round_num} Pairings — {tournament_data['tournament_name']}",
-            description="Pairings updated! Players can run `/my_match` in this thread to check their table and opponent.",
+            description="Players can also run `/my_match` to look up match details privately.",
             color=discord.Color.blue()
         )
+        current_char_count = len(current_embed.title or "") + len(current_embed.description or "")
 
         for div_name, players in round_info.items():
-            active_tables = len([p for p, d in players.items() if d["table"] != "Bye"]) // 2
-            byes = len([p for p, d in players.items() if d["table"] == "Bye"])
-            embed.add_field(
-                name=div_name,
-                value=f"**{len(players)}** Players | **{active_tables}** Active Tables | **{byes}** Bye(s)",
-                inline=False
-            )
+            # Sort players alphabetically by Name
+            sorted_players = sorted(players.items(), key=lambda x: x[0].lower())
 
-        await interaction.followup.send(embed=embed)
+            lines = []
+            for p_name, p_data in sorted_players:
+                tbl = str(p_data.get("table", "N/A")).strip()
+                table_str = f"Table {tbl}" if tbl.lower() != "bye" else "Bye"
+                lines.append(f"`{table_str}`\t**{p_name}**")
+
+            # Chunk into fields <= 1000 characters
+            chunks = []
+            current_chunk = []
+            current_chunk_len = 0
+
+            for line in lines:
+                if current_chunk_len + len(line) + 1 > 1000:
+                    chunks.append("\n".join(current_chunk))
+                    current_chunk = [line]
+                    current_chunk_len = len(line)
+                else:
+                    current_chunk.append(line)
+                    current_chunk_len += len(line) + 1
+            if current_chunk:
+                chunks.append("\n".join(current_chunk))
+
+            # Add fields and handle pagination across embeds
+            for i, chunk in enumerate(chunks):
+                if len(chunks) == 1:
+                    field_name = f"🏆 {div_name} ({len(sorted_players)} Players)"
+                else:
+                    field_name = f"🏆 {div_name} ({len(sorted_players)} Players) — Part {i+1}/{len(chunks)}"
+
+                field_len = len(field_name) + len(chunk)
+
+                if current_char_count + field_len > 1800 or len(current_embed.fields) >= 20:
+                    embeds_to_send.append(current_embed)
+                    current_embed = discord.Embed(
+                        title=f"⚔️ Round {round_num} Pairings (Continued) — {tournament_data['tournament_name']}",
+                        color=discord.Color.blue()
+                    )
+                    current_char_count = len(current_embed.title or "")
+
+                current_embed.add_field(name=field_name, value=chunk, inline=False)
+                current_char_count += field_len
+
+        if len(current_embed.fields) > 0 or not embeds_to_send:
+            embeds_to_send.append(current_embed)
+
+        for embed in embeds_to_send:
+            await interaction.followup.send(embed=embed)
 
     @app_commands.command(
         name="upload_standing",
