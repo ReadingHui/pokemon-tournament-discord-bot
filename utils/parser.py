@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from bs4 import BeautifulSoup
 
 class Parser:
@@ -49,7 +50,33 @@ class Parser:
         return players
 
     def parse_pairing(self):
-        pass
+        round_num = self.soup.find("h3", string=re.compile(r"Round")).get_text().split(' ')[-1]
+        round_info = {}
+        divs = self.soup.find_all("h3", string=re.compile(r"Division"))
+        for div in divs:
+            div_name = div.get_text()
+            player_info = {}
+            table = div.find_next("table", class_="report")
+            rows = table.find_all("tr")
+            for row in rows:
+                cols = [td.get_text().strip() for td in row.select("td")]
+                if not cols:
+                    continue
+                player, record = cols[1].split('\xa0')
+                if player not in player_info:
+                    player_info[player] = {
+                        'table': cols[0],
+                        'opponent': cols[3].split('\xa0')[0],
+                        'record': record
+                    }
+                else:
+                    raise ValueError("Same name for players.")
+
+            round_info[div_name] = player_info
+        return {
+            round_num: round_info
+        }
+        
 
 
 if __name__ == "__main__":
