@@ -1,5 +1,5 @@
 import json
-import os
+import html
 import re
 from bs4 import BeautifulSoup
 
@@ -7,17 +7,18 @@ class Parser:
     def __init__(self, html_content):
         self.soup = BeautifulSoup(html_content, "html.parser")
 
-    def parse_meta(self):
+    def parse_meta(self, verbose=False):
         html_title = self.soup.find("title").get_text()
         report_type = html_title.split(' - ')[0].strip()
         tournament_name = self.soup.select_one("table.footer tr td:nth-child(1)").get_text(strip=True)
         organizer_name = self.soup.select_one("table.footer tr td:nth-child(2)").get_text(strip=True)
         date_time = self.soup.select_one("table.footer tr td:nth-child(3)").get_text(strip=True)
-        print()
-        print(f"Report type:            {report_type}")
-        print(f"Tournament name:        {tournament_name}")
-        print(f"Organizer name:         {organizer_name}")
-        print(f"Report date and time:   {date_time}")
+        if verbose:
+            print()
+            print(f"Report type:            {report_type}")
+            print(f"Tournament name:        {tournament_name}")
+            print(f"Organizer name:         {organizer_name}")
+            print(f"Report date and time:   {date_time}")
         return report_type, tournament_name, organizer_name, date_time
 
 
@@ -51,6 +52,17 @@ class Parser:
         
         return players
 
+    def get_player_record(self, td: str):
+        text = html.unescape(td)
+        text = re.sub(r's+', ' ', text).strip()
+        text = re.sub(r'★', ' ', text).strip()
+        match = re.match(r'^(.*?)\s*(\(.*\))$', text)
+        if match:
+            name, record = match.groups()
+            return name, record
+        else:
+            raise SyntaxError("[Error] Cannot parse player name and record.")
+
     def parse_pairing(self):
         round_num = self.soup.find("h3", string=re.compile(r"Round")).get_text().split(' ')[-1]
         round_info = {}
@@ -66,10 +78,7 @@ class Parser:
                 cols = [td.get_text().strip() for td in row.select("td")]
                 if not cols:
                     continue
-                player_record = cols[1].split("\xa0")
-                if len(player_record) < 2:
-                    player_record = cols[1].split("&nbsp;")
-                player, record = player_record[0], player_record[1]
+                player, record = self.get_player_record(cols[1])
                 if player not in player_info:
                     player_info[player] = {
                         'table': cols[0],
