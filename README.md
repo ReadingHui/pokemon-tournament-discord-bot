@@ -1,10 +1,3 @@
-Here are the updated `README.md` and Discord announcement post incorporating the new standings commands and updated pairing layout.
-
----
-
-### `README.md`
-
-```markdown
 # 🏆 Tournament Discord Bot
 
 A Discord bot for managing Swiss card game tournaments. Parse HTML export reports from tournament software directly inside thread channels to publish pairings, standings, and player rosters.
@@ -46,40 +39,3 @@ A Discord bot for managing Swiss card game tournaments. Parse HTML export report
 2. When the report opens in your browser, copy the local file path from the URL bar (e.g., `file:///C:/Users/.../pairings.html`).
 3. In Discord, run `/upload_roster`, `/upload_pairing`, or `/upload_standing`.
 4. Paste the path into the attachment file selector dialog and submit.
-
-```
-
----
-
-### Discord Announcement / Guide Post
-
-📁 **Tournament Commands & Upload Guide**
-
-Here is how to upload files and use player commands during events!
-
----
-
-### 🛡️ For Tournament Organizers
-
-**How to Upload Reports:**
-
-1. Generate the **Roster**, **Pairings**, or **Standings** report in your tournament software.
-2. Copy the file path directly from your web browser's address bar (`file:///C:/...`).
-3. Run the upload command in the tournament thread, click the file box, paste the path (`Ctrl + V`), and hit Enter!
-
-**Upload Commands:**
-
-* `/upload_roster` — Upload initial player registrations.
-* `/upload_pairing` — Upload round pairings. Displays an alphabetically sorted roster with fixed-width aligned table numbers (`Table 1  `, `Bye      `).
-* `/upload_standing` — Upload standings. Updates overall rankings and tiebreakers for all divisions.
-
----
-
-### 👤 For Players
-
-You can check your match assignments and tiebreaker standings privately inside the tournament thread at any time:
-
-* ⚔️ `/my_match` — Auto-completes your name and shows your current **Table Number**, **Opponent**, and **Record**.
-* 📊 `/check_standing` — Shows your **Rank**, **Match Points**, **Record**, **Opponents' Win %**, and **Opponents' Opponents' Win %**.
-
-*(Note: Both player lookup commands respond privately to you so they won't spam the thread!)*
