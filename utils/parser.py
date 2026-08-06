@@ -9,8 +9,10 @@ class Parser:
 
     def parse_meta(self):
         html_title = self.soup.find("title").get_text()
-        report_type, tournament_name, date_time = [t.strip() for t in html_title.split(' - ')]
+        report_type = html_title.split(' - ')[0].strip()
+        tournament_name = self.soup.select_one("table.footer tr td:nth-child(1)").get_text(strip=True)
         organizer_name = self.soup.select_one("table.footer tr td:nth-child(2)").get_text(strip=True)
+        date_time = self.soup.select_one("table.footer tr td:nth-child(3)").get_text(strip=True)
         print()
         print(f"Report type:            {report_type}")
         print(f"Tournament name:        {tournament_name}")
@@ -53,6 +55,8 @@ class Parser:
         round_num = self.soup.find("h3", string=re.compile(r"Round")).get_text().split(' ')[-1]
         round_info = {}
         divs = self.soup.find_all("h3", string=re.compile(r"Division"))
+        if not divs:
+            divs = self.soup.find("h3", string=re.compile(r"All"))
         for div in divs:
             div_name = div.get_text()
             player_info = {}
@@ -62,7 +66,10 @@ class Parser:
                 cols = [td.get_text().strip() for td in row.select("td")]
                 if not cols:
                     continue
-                player, record = cols[1].split('\xa0')
+                player_record = cols[1].split("\xa0")
+                if len(player_record) < 2:
+                    player_record = cols[1].split("&nbsp;")
+                player, record = player_record[0], player_record[1]
                 if player not in player_info:
                     player_info[player] = {
                         'table': cols[0],
