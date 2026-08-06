@@ -331,7 +331,7 @@ class Tournament(commands.Cog):
             html_content = html_bytes.decode("utf-8", errors="ignore")
 
             parser = Parser(html_content)
-            standings_data = parser.parse_standing()
+            standings_data = parser.parse_standings()
 
             if not standings_data or not isinstance(standings_data, dict):
                 raise ValueError("Parsed standings content is empty or malformed.")

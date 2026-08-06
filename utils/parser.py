@@ -109,15 +109,13 @@ class Parser:
             "Opponents' win %": opp_win,
             "Opponents' opponents' win %": opp_opp_win
         }
-        
-
 
     def parse_standings(self):
-        rounds = [h3.get_text() for h3 in self.soup.find_all("h3", string=re.compile("Standings"))]
-        divs = [h2 for h2 in self.soup.find_all("h2", string=re.compile("Division"))]        
+        rounds = [h3.get_text().strip() for h3 in self.soup.find_all("h3", string=re.compile("Standings"))]
+        divs = self.soup.find_all("h2", string=re.compile("Division")) 
         player_info = {}
         for i, div in enumerate(divs):
-            div_name = div.get_text()
+            div_name = div.get_text().strip()
             table = div.find_next("table", class_="report")
             rows = table.find_all("tr")
             for row in rows:
