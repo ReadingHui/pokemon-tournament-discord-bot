@@ -396,7 +396,7 @@ class Tournament(commands.Cog):
             embed.add_field(name="Table", value="**BYE**", inline=False)
             embed.add_field(name="Opponent", value="N/A", inline=False)
         else:
-            embed.add_field(name="Table", value=f"**Table {status['table']}**", inline=True)
+            embed.add_field(name="Table", value=f"**{status['table']}**", inline=True)
             embed.add_field(name="Opponent", value=status["opponent"], inline=True)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
