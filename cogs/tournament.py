@@ -9,16 +9,73 @@ from utils.storage import (
     delete_tournament_by_thread
 )
 
+TO_ROLE_NAME = "Tournament Organizer"
+
+
+def is_tournament_admin():
+    """Custom check: allows Server Administrators or users with the TO_ROLE_NAME role."""
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if not interaction.guild or not isinstance(interaction.user, discord.Member):
+            return False
+
+        # 1. Server Administrators always pass
+        if interaction.user.guild_permissions.administrator:
+            return True
+
+        # 2. Users with the designated TO role pass
+        return any(role.name == TO_ROLE_NAME for role in interaction.user.roles)
+
+    return app_commands.check(predicate)
+
 
 class Tournament(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Catches permission failure and returns an ephemeral error message to the user."""
+        if isinstance(error, app_commands.CheckFailure):
+            msg = f"❌ You need Server Administrator permissions or the **{TO_ROLE_NAME}** role to use this command."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
+        else:
+            raise error
+
+    async def player_name_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocompletes player names based on saved roster data in the thread."""
+        if not isinstance(interaction.channel, discord.Thread):
+            return []
+
+        tournament_data = load_tournament_by_thread(interaction.guild_id, interaction.channel.id)
+        if not tournament_data:
+            return []
+
+        players = list(tournament_data.get("players", {}).keys())
+        if not players:
+            current_round = str(tournament_data.get("current_round", 0))
+            round_pairings = tournament_data.get("rounds", {}).get(current_round, {})
+            for div_players in round_pairings.values():
+                players.extend(div_players.keys())
+
+        matching_players = [
+            app_commands.Choice(name=name, value=name)
+            for name in players
+            if current.lower() in name.lower()
+        ]
+        return matching_players[:25]
 
     @app_commands.command(
         name="create_tournament",
         description="Create a new tournament and dedicated discussion thread."
     )
     @app_commands.describe(name="Tournament name")
+    @is_tournament_admin()
     async def create_tournament(self, interaction: discord.Interaction, name: str):
         if isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
@@ -29,13 +86,11 @@ class Tournament(commands.Cog):
 
         await interaction.response.defer(thinking=True)
 
-        # Create public thread in the current text channel
         thread = await interaction.channel.create_thread(
             name=f"🏆 {name}",
             type=discord.ChannelType.public_thread
         )
 
-        # Initialize storage entry keyed directly by thread.id
         tournament_data = {
             "tournament_name": name,
             "guild_id": interaction.guild_id,
@@ -59,6 +114,7 @@ class Tournament(commands.Cog):
         description="Upload roster HTML file (Must be executed inside tournament thread)."
     )
     @app_commands.describe(roster="HTML roster report file")
+    @is_tournament_admin()
     async def upload_roster(self, interaction: discord.Interaction, roster: discord.Attachment):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
@@ -98,7 +154,6 @@ class Tournament(commands.Cog):
         tournament_data["players"] = roster_data
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
-        # Build roster summary embed
         divisions = {}
         for player_name, info in roster_data.items():
             div = info.get("age_division", "General")
@@ -127,6 +182,7 @@ class Tournament(commands.Cog):
         description="Upload pairings HTML file (Must be executed inside tournament thread)."
     )
     @app_commands.describe(pairing="HTML pairings report file")
+    @is_tournament_admin()
     async def upload_pairing(self, interaction: discord.Interaction, pairing: discord.Attachment):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
@@ -190,6 +246,7 @@ class Tournament(commands.Cog):
         name="delete_tournament",
         description="Delete tournament data and remove this thread."
     )
+    @is_tournament_admin()
     async def delete_tournament(self, interaction: discord.Interaction):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
@@ -211,35 +268,6 @@ class Tournament(commands.Cog):
         thread = interaction.channel
         delete_tournament_by_thread(interaction.guild_id, thread.id)
         await thread.delete()
-
-    async def player_name_autocomplete(
-        self,
-        interaction: discord.Interaction,
-        current: str
-    ) -> list[app_commands.Choice[str]]:
-        """Autocompletes player names based on saved roster data in the thread."""
-        if not isinstance(interaction.channel, discord.Thread):
-            return []
-
-        tournament_data = load_tournament_by_thread(interaction.guild_id, interaction.channel.id)
-        if not tournament_data:
-            return []
-
-        # Get player list from roster; fall back to current round pairings if roster was skipped
-        players = list(tournament_data.get("players", {}).keys())
-        if not players:
-            current_round = str(tournament_data.get("current_round", 0))
-            round_pairings = tournament_data.get("rounds", {}).get(current_round, {})
-            for div_players in round_pairings.values():
-                players.extend(div_players.keys())
-
-        # Case-insensitive substring match limited to Discord's 25-choice max limit
-        matching_players = [
-            app_commands.Choice(name=name, value=name)
-            for name in players
-            if current.lower() in name.lower()
-        ]
-        return matching_players[:25]
 
     @app_commands.command(
         name="my_match",
