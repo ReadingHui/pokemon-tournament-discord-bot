@@ -54,7 +54,7 @@ class Parser:
 
     def get_player_record(self, td: str):
         text = html.unescape(td)
-        text = re.sub(r's+', ' ', text).strip()
+        text = re.sub(r'\s+', ' ', text).strip()
         text = re.sub(r'★', ' ', text).strip()
         match = re.match(r'^(.*?)\s*(\(.*\))$', text)
         if match:
