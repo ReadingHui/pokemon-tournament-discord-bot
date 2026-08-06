@@ -2,7 +2,7 @@ import requests
 import json
 import os
 
-from parser import Parser
+from utils.parser import Parser
 from embed import Embedder
 
 with open("config.json", "r", encoding="utf-8") as f:

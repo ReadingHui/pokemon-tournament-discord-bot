@@ -5,8 +5,6 @@ from bs4 import BeautifulSoup
 class Parser:
     def __init__(self, html_content):
         self.soup = BeautifulSoup(html_content, "html.parser")
-        headings = self.soup.find_all("h3", string=lambda x: x and "Division" in x)
-        self.divs = [heading.get_text().split(' ')[0] for heading in headings]
 
     def parse_meta(self):
         html_title = self.soup.find("title").get_text()
@@ -28,20 +26,31 @@ class Parser:
             rows.append(cols)
         return rows
 
-    def parse_roster(self):
-        # Extract Divisions        
-        divs = self.divs
-        roster = {}
+    def parse_player_list(self):
+        headers = [col.get_text().replace('\xa0', ' ') for col in self.soup.select_one("table.players_table thead tr").find_all("th")]
+        name_idx = headers.index('Name')
+        age_division_idx = headers.index("Age Division")
+        static_seat_idx = headers.index("Static Seat")
 
-        for div in divs:
-            target_h3 = self.soup.find("h3", string=lambda x: x and div in x)
-            table = target_h3.find_next("table", class_="players_table")
-            headers = [col.get_text().replace('\xa0', ' ') for col in table.select("thead tr th")]
-            name_idx = headers.index('Name')
-            players = [row[name_idx] for row in self.get_rows(table)]
-            roster[div] = players
+        players = {}
+        rows = self.soup.select(".players_table tbody tr")
+        for row in rows:
+            cols = [s.get_text().strip() for s in row.find_all('td')]
+            name = cols[name_idx]
+            age_division = cols[age_division_idx]
+            static_seat = int(cols[static_seat_idx]) if cols[static_seat_idx] else 0
+            player_info = {
+                'discord_id': None,
+                'age_division': age_division,
+                'static_seat': static_seat
+            }
+            players[name] = player_info
+        
+        return players
 
-        return roster
+    def parse_pairing(self):
+        pass
+
 
 if __name__ == "__main__":
     # Testing case
@@ -50,7 +59,17 @@ if __name__ == "__main__":
 
     TOM_path = config["TOM_DATA_path"]
     with open(os.path.join(TOM_path, "data", "reports", "testingroster.html"), "r", encoding="utf-8") as file:
-            html_content = file.read()
+        html_content = file.read()
     parser = Parser(html_content)
     parser.parse_meta()
-    parser.parse_roster()
+    print()
+
+    print("parse_player_list() output:")
+    print(parser.parse_player_list())
+    print()
+
+    with open(os.path.join(TOM_path, "data", "reports", "testingpairings.html"), "r", encoding="utf-8") as file:
+        html_content = file.read()
+    parser = Parser(html_content)
+    print("parse_pairing() output:")
+    print(parser.parse_pairing())
