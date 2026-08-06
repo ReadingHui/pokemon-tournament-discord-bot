@@ -46,7 +46,7 @@ class Tournament(commands.Cog):
         interaction: discord.Interaction,
         current: str
     ) -> list[app_commands.Choice[str]]:
-        """Autocompletes player names based on saved roster data in the thread."""
+        """Autocompletes player names from roster, standings, or round pairings in the thread."""
         if not isinstance(interaction.channel, discord.Thread):
             return []
 
@@ -54,7 +54,10 @@ class Tournament(commands.Cog):
         if not tournament_data:
             return []
 
+        # Check roster first, then standings, then fallback to current round pairings
         players = list(tournament_data.get("players", {}).keys())
+        if not players:
+            players = list(tournament_data.get("standings", {}).keys())
         if not players:
             current_round = str(tournament_data.get("current_round", 0))
             round_pairings = tournament_data.get("rounds", {}).get(current_round, {})
@@ -95,23 +98,22 @@ class Tournament(commands.Cog):
             "thread_id": thread.id,
             "current_round": 0,
             "players": {},
-            "rounds": {}
+            "rounds": {},
+            "standings": {}
         }
         save_tournament_by_thread(interaction.guild_id, thread.id, tournament_data)
 
-        # Generate Unix timestamp for Discord localized date display
         created_timestamp = int(discord.utils.utcnow().timestamp())
 
         await interaction.followup.send(
             f"✅ Tournament **{name}** created! Manage it in thread: {thread.mention}"
         )
 
-        # Thread Welcome Message with Organizer & Timestamp
         await thread.send(
             f"🏆 **Welcome to {name}!**\n"
             f"👤 **Organizer:** {interaction.user.mention} (`{interaction.user.name}`)\n"
             f"📅 **Created On:** <t:{created_timestamp}:F>\n\n"
-            f"Run `/upload_roster` and `/upload_pairing` directly in this thread to manage rounds."
+            f"Run `/upload_roster`, `/upload_pairing`, and `/upload_standing` directly in this thread."
         )
 
     @app_commands.command(
@@ -158,8 +160,7 @@ class Tournament(commands.Cog):
 
         except Exception:
             await interaction.followup.send(
-                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid roster HTML report. "
-                "Please verify you selected the correct file.",
+                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid roster HTML report.",
                 ephemeral=True
             )
             return
@@ -167,7 +168,6 @@ class Tournament(commands.Cog):
         tournament_data["players"] = roster_data
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
-        # Group players by division
         divisions = {}
         for player_name, info in roster_data.items():
             div = info.get("age_division", "General")
@@ -182,10 +182,8 @@ class Tournament(commands.Cog):
         current_char_count = len(current_embed.title or "") + len(current_embed.description or "")
 
         for div_name, p_list in divisions.items():
-            # Format vertical numbered list
             lines = [f"{idx}. {p}" for idx, p in enumerate(p_list, 1)]
 
-            # Chunk vertical lines into field values under 1000 characters (Discord field max is 1024)
             chunks = []
             current_chunk = []
             current_chunk_len = 0
@@ -201,16 +199,10 @@ class Tournament(commands.Cog):
             if current_chunk:
                 chunks.append("\n".join(current_chunk))
 
-            # Attach chunks as fields
             for i, chunk in enumerate(chunks):
-                if len(chunks) == 1:
-                    field_name = f"🏆 {div_name} ({len(p_list)})"
-                else:
-                    field_name = f"🏆 {div_name} ({len(p_list)}) — Part {i+1}/{len(chunks)}"
-
+                field_name = f"🏆 {div_name} ({len(p_list)})" if len(chunks) == 1 else f"🏆 {div_name} ({len(p_list)}) — Part {i+1}/{len(chunks)}"
                 field_len = len(field_name) + len(chunk)
 
-                # Split into a new Embed if character count exceeds ~1800 or fields exceed 20
                 if current_char_count + field_len > 1800 or len(current_embed.fields) >= 20:
                     embeds_to_send.append(current_embed)
                     current_embed = discord.Embed(
@@ -225,7 +217,6 @@ class Tournament(commands.Cog):
         if len(current_embed.fields) > 0 or not embeds_to_send:
             embeds_to_send.append(current_embed)
 
-        # Send all generated embeds sequentially
         for embed in embeds_to_send:
             await interaction.followup.send(embed=embed)
 
@@ -278,8 +269,7 @@ class Tournament(commands.Cog):
 
         except Exception:
             await interaction.followup.send(
-                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid pairings HTML report. "
-                "Please check if you uploaded a roster file by mistake.",
+                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid pairings HTML report.",
                 ephemeral=True
             )
             return
@@ -304,6 +294,181 @@ class Tournament(commands.Cog):
             )
 
         await interaction.followup.send(embed=embed)
+
+    @app_commands.command(
+        name="upload_standing",
+        description="Upload standings HTML file (Must be executed inside tournament thread)."
+    )
+    @app_commands.describe(standing="HTML standings report file")
+    @is_tournament_admin()
+    async def upload_standing(self, interaction: discord.Interaction, standing: discord.Attachment):
+        if not isinstance(interaction.channel, discord.Thread):
+            await interaction.response.send_message(
+                "❌ This command can only be used inside a tournament thread.",
+                ephemeral=True
+            )
+            return
+
+        tournament_data = load_tournament_by_thread(interaction.guild_id, interaction.channel.id)
+        if not tournament_data:
+            await interaction.response.send_message(
+                "❌ No active tournament associated with this thread.",
+                ephemeral=True
+            )
+            return
+
+        if not standing.filename.endswith((".html", ".htm")):
+            await interaction.response.send_message(
+                "❌ Invalid file type! Please attach a `.html` standings report.",
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(thinking=True)
+
+        try:
+            html_bytes = await standing.read()
+            html_content = html_bytes.decode("utf-8", errors="ignore")
+
+            parser = Parser(html_content)
+            standings_data = parser.parse_standing()
+
+            if not standings_data or not isinstance(standings_data, dict):
+                raise ValueError("Parsed standings content is empty or malformed.")
+
+        except Exception:
+            await interaction.followup.send(
+                "❌ **Parsing Error:** The uploaded file could not be parsed as a valid standings HTML report.",
+                ephemeral=True
+            )
+            return
+
+        tournament_data["standings"] = standings_data
+        save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
+
+        # Extract round label header from the first entry
+        round_title = "Standings"
+        for p_info in standings_data.values():
+            if p_info.get("Rounds"):
+                round_title = p_info["Rounds"].strip()
+                break
+
+        # Group players by division and sort by Rank
+        divisions = {}
+        for player_name, info in standings_data.items():
+            div = info.get("Division", "General")
+            divisions.setdefault(div, []).append((info.get("Rank", 999), player_name, info))
+
+        for div in divisions:
+            divisions[div].sort(key=lambda x: x[0])
+
+        embeds_to_send = []
+        current_embed = discord.Embed(
+            title=f"📊 {round_title} — {tournament_data['tournament_name']}",
+            description=f"Standings updated for **{len(standings_data)}** total players. Use `/check_standing` to view individual tiebreaker stats.",
+            color=discord.Color.gold()
+        )
+        current_char_count = len(current_embed.title or "") + len(current_embed.description or "")
+
+        for div_name, player_tuples in divisions.items():
+            # Build vertical formatted lines: "1. Player Name — Record (Pts)"
+            lines = [
+                f"**#{rank}** {p_name} — `{info.get('Record', 'N/A')}`"
+                for rank, p_name, info in player_tuples
+            ]
+
+            chunks = []
+            current_chunk = []
+            current_chunk_len = 0
+
+            for line in lines:
+                if current_chunk_len + len(line) + 1 > 1000:
+                    chunks.append("\n".join(current_chunk))
+                    current_chunk = [line]
+                    current_chunk_len = len(line)
+                else:
+                    current_chunk.append(line)
+                    current_chunk_len += len(line) + 1
+            if current_chunk:
+                chunks.append("\n".join(current_chunk))
+
+            for i, chunk in enumerate(chunks):
+                field_name = f"🥇 {div_name} ({len(player_tuples)})" if len(chunks) == 1 else f"🥇 {div_name} ({len(player_tuples)}) — Part {i+1}/{len(chunks)}"
+                field_len = len(field_name) + len(chunk)
+
+                if current_char_count + field_len > 1800 or len(current_embed.fields) >= 20:
+                    embeds_to_send.append(current_embed)
+                    current_embed = discord.Embed(
+                        title=f"📊 {round_title} (Continued) — {tournament_data['tournament_name']}",
+                        color=discord.Color.gold()
+                    )
+                    current_char_count = len(current_embed.title or "")
+
+                current_embed.add_field(name=field_name, value=chunk, inline=False)
+                current_char_count += field_len
+
+        if len(current_embed.fields) > 0 or not embeds_to_send:
+            embeds_to_send.append(current_embed)
+
+        for embed in embeds_to_send:
+            await interaction.followup.send(embed=embed)
+
+    @app_commands.command(
+        name="check_standing",
+        description="Lookup your current rank, record, and tiebreaker stats in this thread."
+    )
+    @app_commands.describe(player_name="Your full registered player name")
+    @app_commands.autocomplete(player_name=player_name_autocomplete)
+    async def check_standing(self, interaction: discord.Interaction, player_name: str):
+        if not isinstance(interaction.channel, discord.Thread):
+            await interaction.response.send_message(
+                "❌ `/check_standing` can only be used inside a tournament thread.",
+                ephemeral=True
+            )
+            return
+
+        tournament_data = load_tournament_by_thread(interaction.guild_id, interaction.channel.id)
+        if not tournament_data:
+            await interaction.response.send_message(
+                "❌ No active tournament associated with this thread.",
+                ephemeral=True
+            )
+            return
+
+        standings = tournament_data.get("standings", {})
+        if not standings:
+            await interaction.response.send_message(
+                "❌ No standings have been uploaded for this tournament yet.",
+                ephemeral=True
+            )
+            return
+
+        info = standings.get(player_name)
+        if not info:
+            await interaction.response.send_message(
+                f"❌ Player **{player_name}** not found in current standings.",
+                ephemeral=True
+            )
+            return
+
+        rounds_header = info.get("Rounds", "Current Standings").strip()
+
+        embed = discord.Embed(
+            title=f"📊 {rounds_header}",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="Player", value=player_name, inline=True)
+        embed.add_field(name="Rank", value=f"**#{info.get('Rank', 'N/A')}**", inline=True)
+        embed.add_field(name="Division", value=info.get("Division", "N/A"), inline=True)
+
+        embed.add_field(name="Record", value=info.get("Record", "N/A"), inline=True)
+        embed.add_field(name="Match Points", value=str(info.get("Match Points", "0")), inline=True)
+        embed.add_field(name="Drop Round", value=info.get("Drop Round", "N/A"), inline=True)
+
+        embed.add_field(name="Opponents' Win %", value=info.get("Opponents' win %", "N/A"), inline=True)
+        embed.add_field(name="Opponents' Opp Win %", value=info.get("Opponents' opponents' win %", "N/A"), inline=True)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
         name="delete_tournament",
@@ -396,7 +561,7 @@ class Tournament(commands.Cog):
             embed.add_field(name="Table", value="**BYE**", inline=False)
             embed.add_field(name="Opponent", value="N/A", inline=False)
         else:
-            embed.add_field(name="Table", value=f"**{status['table']}**", inline=True)
+            embed.add_field(name="Table", value=f"**Table {status['table']}**", inline=True)
             embed.add_field(name="Opponent", value=status["opponent"], inline=True)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)

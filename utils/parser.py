@@ -92,6 +92,47 @@ class Parser:
         return {
             round_num: round_info
         }
+
+    def get_player_standing(self, cols):
+        rank = int(cols[0].strip())
+        name = cols[1].strip()
+        drop_rd = int(cols[3].strip()) if cols[3] else "N/A"
+        record = cols[4].strip()
+        match_pts = int(cols[5].strip())
+        opp_win = cols[6].strip()
+        opp_opp_win = cols[7].strip()
+        return name, {
+            "Rank": rank,
+            "Drop Round": drop_rd,
+            "Record": record,
+            "Match Points": match_pts,
+            "Opponents' win %": opp_win,
+            "Opponents' opponents' win %": opp_opp_win
+        }
+        
+
+
+    def parse_standings(self):
+        rounds = [h3.get_text() for h3 in self.soup.find_all("h3", string=re.compile("Standings"))]
+        divs = [h2 for h2 in self.soup.find_all("h2", string=re.compile("Division"))]        
+        player_info = {}
+        for i, div in enumerate(divs):
+            div_name = div.get_text()
+            table = div.find_next("table", class_="report")
+            rows = table.find_all("tr")
+            for row in rows:
+                cols = [td.get_text().strip() for td in row.select("td")]
+                if not cols:
+                    continue
+                player, standing = self.get_player_standing(cols)
+                standing['Division'] = div_name
+                standing['Rounds'] = rounds[i]
+                if player not in player_info:
+                    player_info[player] = standing
+                else:
+                    raise ValueError("Same name for players.")
+        return player_info
+
         
 
 
@@ -116,3 +157,10 @@ if __name__ == "__main__":
     parser = Parser(html_content)
     print("parse_pairing() output:")
     print(parser.parse_pairing())
+    print()
+
+    with open("data/testingstandings.html", "r", encoding="utf-8") as file:
+        html_content = file.read()
+    parser = Parser(html_content)
+    print("parse_standings() output:")
+    print(parser.parse_standings())
