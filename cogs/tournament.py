@@ -157,7 +157,18 @@ class Tournament(commands.Cog):
 
             if not roster_data or not isinstance(roster_data, dict):
                 raise ValueError("Parsed roster content is empty or malformed.")
-
+        except ValueError as ve:
+            if "Same name for players" in str(ve):
+                await interaction.followup.send(
+                    "⚠️ **Duplicate Player Name Detected:** The uploaded report contains multiple players with the exact same name. Please adjust duplicate names in your tournament software (e.g., adding a last initial) and re-upload.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"❌ **Parsing Error:** {ve}",
+                    ephemeral=True
+                )
+            return
         except Exception:
             await interaction.followup.send(
                 "❌ **Parsing Error:** The uploaded file could not be parsed as a valid roster HTML report.",
@@ -266,7 +277,18 @@ class Tournament(commands.Cog):
 
             if not round_info:
                 raise ValueError("No pairing details found in parsed round data.")
-
+        except ValueError as ve:
+            if "Same name for players" in str(ve):
+                await interaction.followup.send(
+                    "⚠️ **Duplicate Player Name Detected:** The uploaded report contains multiple players with the exact same name. Please adjust duplicate names in your tournament software (e.g., adding a last initial) and re-upload.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"❌ **Parsing Error:** {ve}",
+                    ephemeral=True
+                )
+            return
         except Exception:
             await interaction.followup.send(
                 "❌ **Parsing Error:** The uploaded file could not be parsed as a valid pairings HTML report.",
@@ -381,7 +403,18 @@ class Tournament(commands.Cog):
 
             if not standings_data or not isinstance(standings_data, dict):
                 raise ValueError("Parsed standings content is empty or malformed.")
-
+        except ValueError as ve:
+            if "Same name for players" in str(ve):
+                await interaction.followup.send(
+                    "⚠️ **Duplicate Player Name Detected:** The uploaded report contains multiple players with the exact same name. Please adjust duplicate names in your tournament software (e.g., adding a last initial) and re-upload.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"❌ **Parsing Error:** {ve}",
+                    ephemeral=True
+                )
+            return
         except Exception:
             await interaction.followup.send(
                 "❌ **Parsing Error:** The uploaded file could not be parsed as a valid standings HTML report.",
