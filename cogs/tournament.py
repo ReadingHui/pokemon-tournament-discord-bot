@@ -40,13 +40,39 @@ def get_to_role(guild: discord.Guild) -> discord.Role | None:
     return discord.utils.get(guild.roles, name=TO_ROLE_NAME)
 
 
-def get_organizer_mention(guild: discord.Guild, tournament_data: dict) -> str:
-    """Returns a mention for the tournament's creator; falls back to the TO role, then a bare label."""
+async def send_organizer_dm(client: discord.Client, tournament_data: dict, content: str) -> bool:
+    """Attempts to DM the tournament's creator. Returns True if the DM was sent successfully."""
     organizer_id = tournament_data.get("organizer_id")
-    if organizer_id:
-        return f"<@{organizer_id}>"
-    to_role = get_to_role(guild)
-    return to_role.mention if to_role else f"**{TO_ROLE_NAME}**"
+    if not organizer_id:
+        return False
+
+    try:
+        user = client.get_user(organizer_id) or await client.fetch_user(organizer_id)
+        await user.send(content)
+        return True
+    except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+        return False
+
+
+def resolve_player_name(
+    tournament_data: dict,
+    interaction: discord.Interaction,
+    player_name: str | None
+) -> tuple[str | None, str | None]:
+    """Resolves which player name a lookup command should use: the explicit argument if given,
+    otherwise the caller's registered name. Returns (name, error_message); error_message is
+    set (and name is None) if no name was given and the caller isn't registered."""
+    if player_name:
+        return player_name, None
+
+    registered_name = get_registered_player_name(tournament_data, interaction.user.id)
+    if registered_name:
+        return registered_name, None
+
+    return None, (
+        "❌ You didn't specify a `player_name` and you're not registered yet. "
+        "Use `/register` to link your Discord account, or pass a `player_name` explicitly."
+    )
 
 
 def get_registered_player_name(tournament_data: dict, user_id: int) -> str | None:
@@ -142,6 +168,7 @@ class Tournament(commands.Cog):
         description="Create a new tournament and dedicated discussion thread."
     )
     @app_commands.describe(name="Tournament name")
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def create_tournament(self, interaction: discord.Interaction, name: str):
         if isinstance(interaction.channel, discord.Thread):
@@ -189,6 +216,7 @@ class Tournament(commands.Cog):
         description="Upload roster HTML file (Must be executed inside tournament thread)."
     )
     @app_commands.describe(roster="HTML roster report file")
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def upload_roster(self, interaction: discord.Interaction, roster: discord.Attachment):
         if not isinstance(interaction.channel, discord.Thread):
@@ -304,6 +332,7 @@ class Tournament(commands.Cog):
         description="Upload pairings HTML file (Must be executed inside tournament thread)."
     )
     @app_commands.describe(pairing="HTML pairings report file")
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def upload_pairing(self, interaction: discord.Interaction, pairing: discord.Attachment):
         if not isinstance(interaction.channel, discord.Thread):
@@ -436,6 +465,7 @@ class Tournament(commands.Cog):
         description="Upload standings HTML file (Must be executed inside tournament thread)."
     )
     @app_commands.describe(standing="HTML standings report file")
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def upload_standing(self, interaction: discord.Interaction, standing: discord.Attachment):
         if not isinstance(interaction.channel, discord.Thread):
@@ -564,9 +594,9 @@ class Tournament(commands.Cog):
         name="check_standing",
         description="Lookup your current rank, record, and tiebreaker stats in this thread."
     )
-    @app_commands.describe(player_name="Your full registered player name")
+    @app_commands.describe(player_name="Player name to look up (defaults to your registered name if omitted)")
     @app_commands.autocomplete(player_name=player_name_autocomplete)
-    async def check_standing(self, interaction: discord.Interaction, player_name: str):
+    async def check_standing(self, interaction: discord.Interaction, player_name: str = None):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
                 "❌ `/check_standing` can only be used inside a tournament thread.",
@@ -580,6 +610,11 @@ class Tournament(commands.Cog):
                 "❌ No active tournament associated with this thread.",
                 ephemeral=True
             )
+            return
+
+        player_name, error = resolve_player_name(tournament_data, interaction, player_name)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
             return
 
         standings = tournament_data.get("standings", {})
@@ -621,6 +656,7 @@ class Tournament(commands.Cog):
         name="delete_tournament",
         description="Delete tournament data and remove this thread."
     )
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def delete_tournament(self, interaction: discord.Interaction):
         if not isinstance(interaction.channel, discord.Thread):
@@ -648,9 +684,9 @@ class Tournament(commands.Cog):
         name="my_match",
         description="Lookup your match pairing for the active round in this thread."
     )
-    @app_commands.describe(player_name="Your full registered player name")
+    @app_commands.describe(player_name="Player name to look up (defaults to your registered name if omitted)")
     @app_commands.autocomplete(player_name=player_name_autocomplete)
-    async def my_match(self, interaction: discord.Interaction, player_name: str):
+    async def my_match(self, interaction: discord.Interaction, player_name: str = None):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
                 "❌ `/my_match` can only be used inside a tournament thread.",
@@ -664,6 +700,11 @@ class Tournament(commands.Cog):
                 "❌ No active tournament associated with this thread.",
                 ephemeral=True
             )
+            return
+
+        player_name, error = resolve_player_name(tournament_data, interaction, player_name)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
             return
 
         current_round = str(tournament_data.get("current_round", 0))
@@ -756,13 +797,18 @@ class Tournament(commands.Cog):
 
         claimed_by = registrations.get(player_name)
         if claimed_by is not None and claimed_by != interaction.user.id:
-            organizer_mention = get_organizer_mention(interaction.guild, tournament_data)
             alert = (
-                f"⚠️ {organizer_mention} — "
-                f"{interaction.user.mention} attempted to register as **{player_name}**, "
-                f"which is already claimed by <@{claimed_by}>. Use `/assign_player` to resolve."
+                f"⚠️ In **{tournament_data.get('tournament_name', 'your tournament')}** "
+                f"({interaction.channel.mention}) — {interaction.user.mention} ({interaction.user}) attempted "
+                f"to register as **{player_name}**, which is already claimed by <@{claimed_by}>. "
+                f"Use `/assign_player` to resolve."
             )
-            await interaction.channel.send(alert)
+            delivered = await send_organizer_dm(interaction.client, tournament_data, alert)
+            if not delivered:
+                to_role = get_to_role(interaction.guild)
+                fallback_mention = to_role.mention if to_role else f"**{TO_ROLE_NAME}**"
+                await interaction.channel.send(f"{fallback_mention} {alert}")
+
             await interaction.response.send_message(
                 f"⚠️ **{player_name}** is already claimed by another user. "
                 f"The tournament's TO has been notified to resolve this.",
@@ -784,6 +830,7 @@ class Tournament(commands.Cog):
     )
     @app_commands.describe(player_name="Player name to assign", member="Discord member to link to this name")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def assign_player(self, interaction: discord.Interaction, player_name: str, member: discord.Member):
         if not isinstance(interaction.channel, discord.Thread):
@@ -830,6 +877,7 @@ class Tournament(commands.Cog):
     )
     @app_commands.describe(player_name="Player name to unlink")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
+    @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
     async def unregister_player(self, interaction: discord.Interaction, player_name: str):
         if not isinstance(interaction.channel, discord.Thread):
@@ -874,7 +922,7 @@ class Tournament(commands.Cog):
     @app_commands.choices(result=[
         app_commands.Choice(name="Win", value="Win"),
         app_commands.Choice(name="Loss", value="Loss"),
-        app_commands.Choice(name="Draw", value="Draw"),
+        app_commands.Choice(name="Tie", value="Tie"),
     ])
     async def report_result(
         self,
@@ -935,17 +983,20 @@ class Tournament(commands.Cog):
             )
             return
 
-        organizer_mention = get_organizer_mention(interaction.guild, tournament_data)
         score_line = f" (`{game_score}`)" if game_score else ""
-
         report = (
-            f"📣 {organizer_mention} — Match result reported:\n"
+            f"📣 Match result reported in **{tournament_data.get('tournament_name', 'your tournament')}** "
+            f"({interaction.channel.mention}):\n"
             f"**Round {current_round} • {division} • Table {match_info.get('table', 'N/A')}**\n"
-            f"{interaction.user.mention} reports **{player_name}** as a **{result.value}**{score_line} "
-            f"vs opponent **{match_info.get('opponent', 'N/A')}**.\n"
+            f"{interaction.user.mention} ({interaction.user}) reports **{player_name}** as a "
+            f"**{result.value}**{score_line} vs opponent **{match_info.get('opponent', 'N/A')}**.\n"
             f"⚠️ Unconfirmed — please verify and enter this result in your tournament software."
         )
-        await interaction.channel.send(report)
+        delivered = await send_organizer_dm(interaction.client, tournament_data, report)
+        if not delivered:
+            to_role = get_to_role(interaction.guild)
+            fallback_mention = to_role.mention if to_role else f"**{TO_ROLE_NAME}**"
+            await interaction.channel.send(f"{fallback_mention} {report}")
 
         await interaction.response.send_message(
             f"✅ Your result (**{result.value}**) has been sent to the tournament's TO for confirmation.",
