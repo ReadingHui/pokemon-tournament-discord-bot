@@ -97,6 +97,8 @@ class Parser:
     def get_player_standing(self, cols):
         rank = int(cols[0].strip())
         name = cols[1].strip()
+        if "\n" in name:                # Error Standing generation in TOM
+            name = name.split("\n")[0]
         drop_rd = int(cols[3].strip()) if cols[3] else "N/A"
         record = cols[4].strip()
         match_pts = int(cols[5].strip())
@@ -120,12 +122,18 @@ class Parser:
             table = div.find_next("table", class_="report")
             rows = table.find_all("tr")
             for row in rows:
-                cols = [td.get_text().strip() for td in row.select("td")]
+                cols = [td for td in row.select("td")]
+                if cols and cols[1].find(["b", "strong"]) is not None:
+                    top_cut = True
+                else:
+                    top_cut = False
+                cols = [c.get_text().strip() for c in cols]
                 if not cols:
                     continue
                 player, standing = self.get_player_standing(cols)
                 standing['Division'] = div_name
                 standing['Rounds'] = rounds[i]
+                standing['Top_cut'] = top_cut
                 if player not in player_info:
                     player_info[player] = standing
                 else:
@@ -141,22 +149,22 @@ if __name__ == "__main__":
         config = json.load(f)
 
     TOM_path = config["TOM_DATA_path"]
-    with open("data/testingroster.html", "r", encoding="utf-8") as file:
-        html_content = file.read()
-    parser = Parser(html_content)
-    parser.parse_meta()
-    print()
+    # with open("data/testingroster.html", "r", encoding="utf-8") as file:
+    #     html_content = file.read()
+    # parser = Parser(html_content)
+    # parser.parse_meta()
+    # print()
 
-    print("parse_player_list() output:")
-    print(parser.parse_player_list())
-    print()
+    # print("parse_player_list() output:")
+    # print(parser.parse_player_list())
+    # print()
 
-    with open("data/testingpairings.html", "r", encoding="utf-8") as file:
-        html_content = file.read()
-    parser = Parser(html_content)
-    print("parse_pairing() output:")
-    print(parser.parse_pairing())
-    print()
+    # with open("data/testingpairings.html", "r", encoding="utf-8") as file:
+    #     html_content = file.read()
+    # parser = Parser(html_content)
+    # print("parse_pairing() output:")
+    # print(parser.parse_pairing())
+    # print()
 
     with open("data/testingstandings.html", "r", encoding="utf-8") as file:
         html_content = file.read()

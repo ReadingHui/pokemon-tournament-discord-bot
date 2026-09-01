@@ -452,7 +452,7 @@ class Tournament(commands.Cog):
         for div_name, player_tuples in divisions.items():
             # Build vertical formatted lines: "1. Player Name — Record (Pts)"
             lines = [
-                f"**#{rank}** {p_name} — `{info.get('Record', 'N/A')}`"
+                f"**#{rank}** **{p_name}** — `{info.get('Record', 'N/A')}`" if info.get('Top_cut') else f"**#{rank}** {p_name} — `{info.get('Record', 'N/A')}`"
                 for rank, p_name, info in player_tuples
             ]
 
