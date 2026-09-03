@@ -22,9 +22,12 @@ class TournamentBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         """Asynchronously loads cogs and syncs application slash commands."""
-        # Load the tournament cog from cogs/tournament.py
-        await self.load_extension("cogs.tournament")
-        print("✅ Cog loaded: cogs.tournament")
+        # Load the tournament cogs (split across admin and player command sets)
+        await self.load_extension("cogs.tournament_admin")
+        print("✅ Cog loaded: cogs.tournament_admin")
+
+        await self.load_extension("cogs.tournament_player")
+        print("✅ Cog loaded: cogs.tournament_player")
 
         # Sync slash command tree
         if DEV_GUILD_ID:
