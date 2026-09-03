@@ -40,18 +40,28 @@ def get_to_role(guild: discord.Guild) -> discord.Role | None:
     return discord.utils.get(guild.roles, name=TO_ROLE_NAME)
 
 
+async def send_dm(
+    client: discord.Client,
+    user_id: int,
+    content: str = None,
+    embed: discord.Embed = None
+) -> bool:
+    """Attempts to DM a Discord user by ID. Returns True if the DM was sent successfully."""
+    try:
+        user = client.get_user(user_id) or await client.fetch_user(user_id)
+        await user.send(content=content, embed=embed)
+        return True
+    except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+        return False
+
+
 async def send_organizer_dm(client: discord.Client, tournament_data: dict, content: str) -> bool:
     """Attempts to DM the tournament's creator. Returns True if the DM was sent successfully."""
     organizer_id = tournament_data.get("organizer_id")
     if not organizer_id:
         return False
 
-    try:
-        user = client.get_user(organizer_id) or await client.fetch_user(organizer_id)
-        await user.send(content)
-        return True
-    except (discord.Forbidden, discord.HTTPException, discord.NotFound):
-        return False
+    return await send_dm(client, organizer_id, content=content)
 
 
 def resolve_player_name(
@@ -397,6 +407,44 @@ class Tournament(commands.Cog):
         tournament_data["rounds"][str(round_num)] = round_info
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
+        registrations = tournament_data.get("registrations", {})
+        dm_sent_count, dm_attempted_count = 0, 0
+        for reg_player_name, reg_user_id in registrations.items():
+            player_division, player_info = None, None
+            for div_name, players in round_info.items():
+                if reg_player_name in players:
+                    player_division = div_name
+                    player_info = players[reg_player_name]
+                    break
+
+            if not player_info:
+                continue  # Registered player isn't in this round's pairings (e.g. dropped).
+
+            dm_attempted_count += 1
+            dm_embed = discord.Embed(
+                title=f"⚔️ Round {round_num} Pairing — {tournament_data['tournament_name']}",
+                color=discord.Color.blue()
+            )
+            dm_embed.add_field(name="Division", value=player_division, inline=True)
+            dm_embed.add_field(name="Record", value=player_info.get("record", "N/A"), inline=True)
+
+            table = str(player_info.get("table", "N/A")).strip()
+            if table.lower() == "bye":
+                dm_embed.add_field(name="Table", value="**BYE**", inline=False)
+                dm_embed.add_field(name="Opponent", value="N/A", inline=False)
+            else:
+                dm_embed.add_field(name="Table", value=f"**Table {table}**", inline=True)
+                dm_embed.add_field(name="Opponent", value=player_info.get("opponent", "N/A"), inline=True)
+
+            dm_embed.add_field(
+                name="Thread",
+                value=f"[Jump to {interaction.channel.name}]({interaction.channel.jump_url})",
+                inline=False
+            )
+
+            if await send_dm(interaction.client, reg_user_id, embed=dm_embed):
+                dm_sent_count += 1
+
         embeds_to_send = []
         current_embed = discord.Embed(
             title=f"⚔️ Round {round_num} Pairings — {tournament_data['tournament_name']}",
@@ -460,6 +508,13 @@ class Tournament(commands.Cog):
         for embed in embeds_to_send:
             await interaction.followup.send(embed=embed)
 
+        if dm_attempted_count > 0:
+            await interaction.followup.send(
+                f"\U0001F4EC Sent pairing DMs to **{dm_sent_count}/{dm_attempted_count}** registered players "
+                f"(the rest likely have DMs disabled).",
+                ephemeral=True
+            )
+
     @app_commands.command(
         name="upload_standing",
         description="Upload standings HTML file (Must be executed inside tournament thread)."
@@ -522,6 +577,44 @@ class Tournament(commands.Cog):
 
         tournament_data["standings"] = standings_data
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
+
+        registrations = tournament_data.get("registrations", {})
+        dm_sent_count, dm_attempted_count = 0, 0
+        for reg_player_name, reg_user_id in registrations.items():
+            info = standings_data.get(reg_player_name)
+            if not info:
+                continue  # Registered player isn't in this standings upload (e.g. dropped).
+
+            dm_attempted_count += 1
+            rounds_header = info.get("Rounds", "Current Standings").strip()
+
+            dm_embed = discord.Embed(
+                title=f"📊 {rounds_header} — {tournament_data['tournament_name']}",
+                color=discord.Color.gold()
+            )
+            dm_embed.add_field(name="Player", value=reg_player_name, inline=True)
+            dm_embed.add_field(name="Rank", value=f"**#{info.get('Rank', 'N/A')}**", inline=True)
+            dm_embed.add_field(name="Division", value=info.get("Division", "N/A"), inline=True)
+
+            dm_embed.add_field(name="Record", value=info.get("Record", "N/A"), inline=True)
+            dm_embed.add_field(name="Match Points", value=str(info.get("Match Points", "0")), inline=True)
+            dm_embed.add_field(name="Drop Round", value=info.get("Drop Round", "N/A"), inline=True)
+
+            dm_embed.add_field(name="Opponents' Win %", value=info.get("Opponents' win %", "N/A"), inline=True)
+            dm_embed.add_field(
+                name="Opponents' Opp Win %",
+                value=info.get("Opponents' opponents' win %", "N/A"),
+                inline=True
+            )
+
+            dm_embed.add_field(
+                name="Thread",
+                value=f"[Jump to {interaction.channel.name}]({interaction.channel.jump_url})",
+                inline=False
+            )
+
+            if await send_dm(interaction.client, reg_user_id, embed=dm_embed):
+                dm_sent_count += 1
 
         # Extract round label header from the first entry
         round_title = "Standings"
@@ -589,6 +682,13 @@ class Tournament(commands.Cog):
 
         for embed in embeds_to_send:
             await interaction.followup.send(embed=embed)
+
+        if dm_attempted_count > 0:
+            await interaction.followup.send(
+                f"📬 Sent standings DMs to **{dm_sent_count}/{dm_attempted_count}** registered players "
+                f"(the rest likely have DMs disabled).",
+                ephemeral=True
+            )
 
     @app_commands.command(
         name="check_standing",
@@ -787,6 +887,13 @@ class Tournament(commands.Cog):
         registrations = tournament_data.setdefault("registrations", {})
 
         existing_name = get_registered_player_name(tournament_data, interaction.user.id)
+        if existing_name == player_name:
+            await interaction.response.send_message(
+                f"❌ You're already registered as **{player_name}**.",
+                ephemeral=True
+            )
+            return
+
         if existing_name and existing_name != player_name:
             await interaction.response.send_message(
                 f"❌ You're already registered as **{existing_name}**. "
