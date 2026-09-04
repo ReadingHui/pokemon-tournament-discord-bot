@@ -1,19 +1,19 @@
 # Tournament Bot — Command Guide
 
-All commands must be run **inside a tournament thread** unless noted otherwise. Player lookup commands (`/check_standing`, `/my_match`) respond privately (only you can see them), so feel free to use them anytime without spamming the thread.
+All commands must be run **inside a tournament thread** unless noted otherwise. Player lookup commands (`/my_standing`, `/my_match`) respond privately (only you can see them), so feel free to use them anytime without spamming the thread.
 
 ---
 
 ## 🧑‍🤝‍🧑 Player Commands
 
-### `/register`
-Link your Discord account to your player name in the tournament. Once registered, other commands (`/check_standing`, `/my_match`, `/report_result`) automatically know who you are — you won't need to type your name again.
+### `/link`
+Link your Discord account to your player name in the tournament. Once linked, other commands (`/my_standing`, `/my_match`, `/report_result`) automatically know who you are — you won't need to type your name again.
 
 - `player_name` — start typing your name; autocomplete pulls from the roster, standings, and pairings.
 
 **Example:**
 ```
-/register player_name: Alex Johnson
+/link player_name: Alex Johnson
 ```
 > ✅ You're now registered as **Alex Johnson**. You can use `/report_result` to report your matches.
 
@@ -24,7 +24,7 @@ If someone else already claimed that name, you'll be told the TO has been notifi
 ### `/my_match`
 Look up your table number, opponent, and record for the **current round**.
 
-- `player_name` *(optional)* — leave blank to look up yourself (requires `/register` first), or specify any name to check someone else's match.
+- `player_name` *(optional)* — leave blank to look up yourself (requires `/link` first), or specify any name to check someone else's match.
 
 **Example:**
 ```
@@ -37,17 +37,17 @@ Look up your table number, opponent, and record for the **current round**.
 
 ---
 
-### `/check_standing`
+### `/my_standing`
 Look up current rank, record, and tiebreaker stats.
 
 - `player_name` *(optional)* — leave blank to look up yourself, or specify any name.
 
 **Example:**
 ```
-/check_standing
+/my_standing
 ```
 ```
-/check_standing player_name: Alex Johnson
+/my_standing player_name: Alex Johnson
 ```
 > Shows an embed with **Rank**, **Division**, **Record**, **Match Points**, **Drop Round**, **Opponents' Win %**, and **Opponents' Opp Win %**.
 
@@ -56,7 +56,7 @@ Look up current rank, record, and tiebreaker stats.
 ---
 
 ### `/report_result`
-Report your result for the current round's match. Requires `/register` first. This is sent to your TO for confirmation — it does **not** automatically update standings.
+Report your result for the current round's match. Requires `/link` first. This is sent to your TO for confirmation — it does **not** automatically update standings.
 
 - `result` — choose **Win**, **Loss**, or **Tie** (from your own perspective).
 - `game_score` *(optional)* — e.g. `2-1`.
@@ -127,7 +127,7 @@ Uploads updated standings. Run this **inside the tournament thread**.
 
 ---
 
-### `/assign_player`
+### `/link_player`
 Manually link (or reassign) a Discord member to a player name — overrides any existing claim. Useful for resolving registration conflicts or linking players who don't want to self-register.
 
 - `player_name` — autocompletes from roster/standings/pairings.
@@ -135,20 +135,20 @@ Manually link (or reassign) a Discord member to a player name — overrides any 
 
 **Example:**
 ```
-/assign_player player_name: Alex Johnson member: @alexj
+/link_player player_name: Alex Johnson member: @alexj
 ```
 > ✅ **Alex Johnson** is now linked to @alexj.
 
 ---
 
-### `/unregister_player`
+### `/unlink_player`
 Removes a player-name's Discord link, e.g. to fix a mistaken registration.
 
 - `player_name` — autocompletes from all known names.
 
 **Example:**
 ```
-/unregister_player player_name: Alex Johnson
+/unlink_player player_name: Alex Johnson
 ```
 > ✅ **Alex Johnson** has been unlinked.
 

@@ -91,8 +91,8 @@ def resolve_player_name(
     player_name: str | None
 ) -> tuple[str | None, str | None]:
     """Resolves which player name a lookup command should use: the explicit argument if given,
-    otherwise the caller's registered name. Returns (name, error_message); error_message is
-    set (and name is None) if no name was given and the caller isn't registered."""
+    otherwise the caller's linked name. Returns (name, error_message); error_message is
+    set (and name is None) if no name was given and the caller isn't linked."""
     if player_name:
         return player_name, None
 
@@ -101,8 +101,8 @@ def resolve_player_name(
         return registered_name, None
 
     return None, (
-        "❌ You didn't specify a `player_name` and you're not registered yet. "
-        "Use `/register` to link your Discord account, or pass a `player_name` explicitly."
+        "❌ You didn't specify a `player_name` and you're not linked yet. "
+        "Use `/link` to link your Discord account, or pass a `player_name` explicitly."
     )
 
 

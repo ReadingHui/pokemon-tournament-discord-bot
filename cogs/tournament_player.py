@@ -20,15 +20,15 @@ class TournamentPlayer(commands.Cog):
         self.bot = bot
 
     @app_commands.command(
-        name="check_standing",
+        name="my_standing",
         description="Lookup your current rank, record, and tiebreaker stats in this thread."
     )
     @app_commands.describe(player_name="Player name to look up (defaults to your registered name if omitted)")
     @app_commands.autocomplete(player_name=player_name_autocomplete)
-    async def check_standing(self, interaction: discord.Interaction, player_name: str = None):
+    async def my_standing(self, interaction: discord.Interaction, player_name: str = None):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
-                "❌ `/check_standing` can only be used inside a tournament thread.",
+                "❌ `/my_standing` can only be used inside a tournament thread.",
                 ephemeral=True
             )
             return
@@ -156,15 +156,15 @@ class TournamentPlayer(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
-        name="register",
+        name="link",
         description="Link your Discord account to your player name in this tournament."
     )
     @app_commands.describe(player_name="Your full registered player name")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
-    async def register(self, interaction: discord.Interaction, player_name: str):
+    async def link(self, interaction: discord.Interaction, player_name: str):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
-                "❌ `/register` can only be used inside a tournament thread.",
+                "❌ `/link` can only be used inside a tournament thread.",
                 ephemeral=True
             )
             return
@@ -228,7 +228,7 @@ class TournamentPlayer(commands.Cog):
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
         await interaction.response.send_message(
-            f"✅ You're now registered as **{player_name}**. You can use `/report_result` to report your matches.",
+            f"✅ You're now linked to **{player_name}**. You can use `/report_result` to report your matches.",
             ephemeral=True
         )
 
@@ -269,7 +269,7 @@ class TournamentPlayer(commands.Cog):
         player_name = get_registered_player_name(tournament_data, interaction.user.id)
         if not player_name:
             await interaction.response.send_message(
-                "❌ You're not registered yet. Use `/register` to link your Discord account to your player name first.",
+                "❌ You're not linked yet. Use `/link` to link your Discord account to your player name first.",
                 ephemeral=True
             )
             return

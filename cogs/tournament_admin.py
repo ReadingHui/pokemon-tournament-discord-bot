@@ -572,14 +572,14 @@ class TournamentAdmin(commands.Cog):
         await thread.delete()
 
     @app_commands.command(
-        name="assign_player",
+        name="link_player",
         description="(TO) Manually link a Discord member to a player name, overriding any existing claim."
     )
     @app_commands.describe(player_name="Player name to assign", member="Discord member to link to this name")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
     @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
-    async def assign_player(self, interaction: discord.Interaction, player_name: str, member: discord.Member):
+    async def link_player(self, interaction: discord.Interaction, player_name: str, member: discord.Member):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
                 "❌ This command can only be used inside a tournament thread.",
@@ -619,14 +619,14 @@ class TournamentAdmin(commands.Cog):
         )
 
     @app_commands.command(
-        name="unregister_player",
+        name="unlink_player",
         description="(TO) Remove the Discord link for a player name."
     )
     @app_commands.describe(player_name="Player name to unlink")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
     @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
-    async def unregister_player(self, interaction: discord.Interaction, player_name: str):
+    async def unlink_player(self, interaction: discord.Interaction, player_name: str):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
                 "❌ This command can only be used inside a tournament thread.",
