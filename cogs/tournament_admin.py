@@ -81,7 +81,11 @@ class TournamentAdmin(commands.Cog):
             f"Run commands `/upload_roster`, `/upload_pairing`, and `/upload_standing` directly in the thread to upload the respective files.\n\n"
             f"- Run `/upload_roster` to post roster, and activate `/link` command for them to link their username.\n"
             f"- Run `/upload_pairing` to post current pairings, linked players will receive automatic DM.\n"
-            f"- Run `/upload_standing` to post final standing, linked players will receive automatic DM."
+            f"- Run `/upload_standing` to post final standing, linked players will receive automatic DM.\n"
+            f"- Run `/link_player [player_name] [discord_handle]` to manually link/re-link a player to the user.\n"
+            f"- Run `/unlink [player_name]` to manually un-link a player.\n"
+            f"- Run `/delete_tournament` to delete the thread and all tournament data after the tournament is finished.\n"
+            f"- Need help or want to report a bug? Join our support server: https://discord.gg/yeqYDwBa7t"
         )
 
         delivered = await send_organizer_dm(interaction.client, tournament_data, creation_report)
