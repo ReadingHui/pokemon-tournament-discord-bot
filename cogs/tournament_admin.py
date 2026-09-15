@@ -15,6 +15,9 @@ from utils.tournament_helpers import (
     get_registered_player_name,
     collect_all_player_names,
     all_player_names_autocomplete,
+    send_organizer_dm,
+    get_to_role,
+    TO_ROLE_NAME
 )
 
 
@@ -71,8 +74,21 @@ class TournamentAdmin(commands.Cog):
             f"🏆 **Welcome to {name}!**\n"
             f"👤 **Organizer:** {interaction.user.mention} (`{interaction.user.name}`)\n"
             f"📅 **Created On:** <t:{created_timestamp}:F>\n\n"
-            f"Run `/upload_roster`, `/upload_pairing`, and `/upload_standing` directly in this thread."
         )
+
+        creation_report = (            
+            f"Tournament **{name}** created successfully at {thread.mention}! \n"
+            f"Run commands `/upload_roster`, `/upload_pairing`, and `/upload_standing` directly in the thread to upload the respective files.\n\n"
+            f"- Run `/upload_roster` to post roster, and activate `/link` command for them to link their username.\n"
+            f"- Run `/upload_pairing` to post current pairings, linked players will receive automatic DM.\n"
+            f"- Run `/upload_standing` to post final standing, linked players will receive automatic DM."
+        )
+
+        delivered = await send_organizer_dm(interaction.client, tournament_data, creation_report)
+        if not delivered:
+            to_role = get_to_role(interaction.guild)
+            fallback_mention = to_role.mention if to_role else f"**{TO_ROLE_NAME}**"
+            await interaction.followup.send(f"{fallback_mention} {creation_report}", ephemeral=True)
 
     @app_commands.command(
         name="upload_roster",
