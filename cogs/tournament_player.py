@@ -228,7 +228,7 @@ class TournamentPlayer(commands.Cog):
         save_tournament_by_thread(interaction.guild_id, interaction.channel.id, tournament_data)
 
         await interaction.response.send_message(
-            f"✅ You're now linked to **{player_name}**. You can use `/report_result` to report your matches. \n\n"
+            f"✅ You're now linked to **{player_name}**. You can use `/report_result` to report your matches once they are done. \n\n"
             f"If you would like to receive notification when new pairings/standings is up, "
             f"remember to turn on 'Allow DMs from other members in this server' at this server -> Privacy Setting",
             ephemeral=True

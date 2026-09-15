@@ -32,7 +32,6 @@ class Parser:
 
     def parse_player_list(self):
         headers = [col.get_text().replace('\xa0', ' ') for col in self.soup.select_one("table.players_table tr").find_all("th")]
-        print(f"Header: {headers}")
         name_idx = headers.index('Name')
         age_division_idx = headers.index("Age Division")
         static_seat_idx = headers.index("Static Seat") if "Static Seat" in headers else ""            
@@ -145,19 +144,19 @@ class Parser:
 
 if __name__ == "__main__":
     # Testing case
-    with open("config.json", "r", encoding="utf-8") as f:
-        config = json.load(f)
+    # with open("config.json", "r", encoding="utf-8") as f:
+    #     config = json.load(f)
 
-    TOM_path = config["TOM_DATA_path"]
-    # with open("data/testingroster.html", "r", encoding="utf-8") as file:
-    #     html_content = file.read()
-    # parser = Parser(html_content)
-    # parser.parse_meta()
-    # print()
+    # TOM_path = config["TOM_DATA_path"]
+    with open("data/testingroster.html", "r", encoding="utf-8") as file:
+        html_content = file.read()
+    parser = Parser(html_content)
+    parser.parse_meta()
+    print()
 
-    # print("parse_player_list() output:")
-    # print(parser.parse_player_list())
-    # print()
+    print("parse_player_list() output:")
+    print(parser.parse_player_list())
+    print()
 
     # with open("data/testingpairings.html", "r", encoding="utf-8") as file:
     #     html_content = file.read()
@@ -166,8 +165,8 @@ if __name__ == "__main__":
     # print(parser.parse_pairing())
     # print()
 
-    with open("data/testingstandings.html", "r", encoding="utf-8") as file:
-        html_content = file.read()
-    parser = Parser(html_content)
-    print("parse_standings() output:")
-    print(parser.parse_standings())
+    # with open("data/testingstandings.html", "r", encoding="utf-8") as file:
+    #     html_content = file.read()
+    # parser = Parser(html_content)
+    # print("parse_standings() output:")
+    # print(parser.parse_standings())

@@ -206,6 +206,15 @@ class TournamentAdmin(commands.Cog):
         for embed in embeds_to_send:
             await interaction.followup.send(embed=embed)
 
+        organizer_id = tournament_data.get("organizer_id")
+        to_mention = f"<@{organizer_id}>" if organizer_id else ""
+        completed_message = (
+            f"**Roster has been uploaded!** \n"
+            f"- Please check if your name is on the roster, contact the Organizer {to_mention} if there is any problem.\n"
+            f"- Please use the `/link` command to link your account to a player name to receive automatic update notifications."
+        )
+        await interaction.followup.send(completed_message)
+
     @app_commands.command(
         name="upload_pairing",
         description="Upload pairings HTML file (Must be executed inside tournament thread)."
