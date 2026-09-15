@@ -210,7 +210,7 @@ class TournamentAdmin(commands.Cog):
         to_mention = f"<@{organizer_id}>" if organizer_id else ""
         completed_message = (
             f"**Roster has been uploaded!** \n"
-            f"- Please check if your name is on the roster, contact the Organizer {to_mention} if there is any problem.\n"
+            f"- Please check if your name is on the roster, contact the Organizer {to_mention} **at once** if there is any problem.\n"
             f"- Please use the `/link` command to link your account to a player name to receive automatic update notifications."
         )
         await interaction.followup.send(completed_message)
@@ -388,10 +388,20 @@ class TournamentAdmin(commands.Cog):
 
         if dm_attempted_count > 0:
             await interaction.followup.send(
-                f"📬 Sent pairing DMs to **{dm_sent_count}/{dm_attempted_count}** registered players "
+                f"📬 Sent pairing DMs to **{dm_sent_count}/{dm_attempted_count}** linked players "
                 f"(the rest likely have DMs disabled).",
                 ephemeral=True
             )
+
+        organizer_id = tournament_data.get("organizer_id")
+        to_mention = f"<@{organizer_id}>" if organizer_id else ""
+        completed_message = (
+            f"⚔️ **Round {round_num} pairings has been posted!** \n"
+            f"- Please double-check your match record using `/my_match`, contact the Organizer {to_mention} **at once** if there is any problem.\n"
+            f"- You can also use `/my_match [player_name]` to check the detailed pairings for another player.\n"
+            f"- Please use the `/link` command to link your account to a player name to receive automatic update notifications if you haven't."            
+        )
+        await interaction.followup.send(completed_message)
 
     @app_commands.command(
         name="upload_standing",
@@ -513,7 +523,7 @@ class TournamentAdmin(commands.Cog):
         embeds_to_send = []
         current_embed = discord.Embed(
             title=f"📊 {round_title} — {tournament_data['tournament_name']}",
-            description=f"Standings updated for **{len(standings_data)}** total players. Use `/check_standing` to view individual tiebreaker stats.",
+            description=f"Standings updated for **{len(standings_data)}** total players. Use `/my_standing` to view individual tiebreaker stats.",
             color=discord.Color.gold()
         )
         current_char_count = len(current_embed.title or "") + len(current_embed.description or "")
@@ -567,6 +577,15 @@ class TournamentAdmin(commands.Cog):
                 f"(the rest likely have DMs disabled).",
                 ephemeral=True
             )
+
+        organizer_id = tournament_data.get("organizer_id")
+        to_mention = f"<@{organizer_id}>" if organizer_id else ""
+        completed_message = (
+            f"⚔️ **Final standings has been posted!** \n"
+            f"- Please double-check your match record using `/my_standing`, contact the Organizer {to_mention} **at once** if there is any problem.\n"
+            f"- You can also use `/my_standing [player_name]` to check the detailed pairings for another player."          
+        )
+        await interaction.followup.send(completed_message)
 
     @app_commands.command(
         name="delete_tournament",

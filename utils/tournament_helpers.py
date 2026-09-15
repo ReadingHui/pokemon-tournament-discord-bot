@@ -120,7 +120,7 @@ async def player_name_autocomplete(
     interaction: discord.Interaction,
     current: str
 ) -> list[app_commands.Choice[str]]:
-    """Autocompletes player names from roster, standings, or round pairings in the thread."""
+    """Autocompletes player names from roster, standings, and round pairings in the thread."""
     if not isinstance(interaction.channel, discord.Thread):
         return []
 
@@ -128,19 +128,22 @@ async def player_name_autocomplete(
     if not tournament_data:
         return []
 
-    # Check roster first, then standings, then fallback to current round pairings
-    players = list(tournament_data.get("players", {}).keys())
-    if not players:
-        players = list(tournament_data.get("standings", {}).keys())
-    if not players:
-        current_round = str(tournament_data.get("current_round", 0))
-        round_pairings = tournament_data.get("rounds", {}).get(current_round, {})
+    players = set()
+
+    # Roster
+    players.update(tournament_data.get("players", {}).keys())
+
+    # Standings
+    players.update(tournament_data.get("standings", {}).keys())
+
+    # All rounds' pairings (not just current round)
+    for round_pairings in tournament_data.get("rounds", {}).values():
         for div_players in round_pairings.values():
-            players.extend(div_players.keys())
+            players.update(div_players.keys())
 
     matching_players = [
         app_commands.Choice(name=name, value=name)
-        for name in players
+        for name in sorted(players)
         if current.lower() in name.lower()
     ]
     return matching_players[:25]
