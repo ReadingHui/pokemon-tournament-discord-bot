@@ -346,7 +346,7 @@ class TournamentAdmin(commands.Cog):
 
                 # Left-align and pad to 9 characters inside the inline code block
                 table_padded = f"{table_str:<9}"
-                lines.append(f"`{table_padded}` **{p_name}**")
+                lines.append(f"`{table_padded}` **{p_name}** — `{p_data.get('record', 'N/A')}`")
 
             # Chunk into fields <= 1000 characters
             chunks = []

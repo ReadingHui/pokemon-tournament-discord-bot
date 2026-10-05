@@ -56,7 +56,8 @@ class Parser:
         text = html.unescape(td)
         text = re.sub(r'\s+', ' ', text).strip()
         text = re.sub(r'★', ' ', text).strip()
-        match = re.match(r'^(.*?)\s*(\(.*\))$', text)
+        pattern = re.compile(r'^(.*?)\s*\((\d+/\d+/\d+)')
+        match = pattern.match(text.strip())
         if match:
             name, record = match.groups()
             return name, record
@@ -148,22 +149,22 @@ if __name__ == "__main__":
     #     config = json.load(f)
 
     # TOM_path = config["TOM_DATA_path"]
-    with open("data/testingroster.html", "r", encoding="utf-8") as file:
-        html_content = file.read()
-    parser = Parser(html_content)
-    parser.parse_meta()
-    print()
-
-    print("parse_player_list() output:")
-    print(parser.parse_player_list())
-    print()
-
-    # with open("data/testingpairings.html", "r", encoding="utf-8") as file:
+    # with open("data/testingroster.html", "r", encoding="utf-8") as file:
     #     html_content = file.read()
     # parser = Parser(html_content)
-    # print("parse_pairing() output:")
-    # print(parser.parse_pairing())
+    # parser.parse_meta()
     # print()
+
+    # print("parse_player_list() output:")
+    # print(parser.parse_player_list())
+    # print()
+
+    with open("data/testingpairings.html", "r", encoding="utf-8") as file:
+        html_content = file.read()
+    parser = Parser(html_content)
+    print("parse_pairing() output:")
+    print(parser.parse_pairing())
+    print()
 
     # with open("data/testingstandings.html", "r", encoding="utf-8") as file:
     #     html_content = file.read()
