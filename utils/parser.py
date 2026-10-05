@@ -56,7 +56,7 @@ class Parser:
         text = html.unescape(td)
         text = re.sub(r'\s+', ' ', text).strip()
         text = re.sub(r'★', ' ', text).strip()
-        pattern = re.compile(r'^(.*?)\s*\((\d+/\d+/\d+)')
+        pattern = re.compile(r'^(.*?)\s*\((\d+/\d+/\d+(?:\s*\(\d+\))?)')
         match = pattern.match(text.strip())
         if match:
             name, record = match.groups()
