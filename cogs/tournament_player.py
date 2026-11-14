@@ -326,6 +326,7 @@ class TournamentPlayer(commands.Cog):
             f"```text\n{player_rows}\n```\n"
             f"{score_line}"
             f"Reported by: {interaction.user.mention} ({player_name})\n"
+            f"🔗 {interaction.channel.mention}\n"
             f"⚠️ Unconfirmed — Verify and enter this result in your tournament software.\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━"
         )
