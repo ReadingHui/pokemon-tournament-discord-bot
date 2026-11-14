@@ -82,7 +82,7 @@ class TournamentAdmin(commands.Cog):
             f"- Run `/upload_roster` to post roster, and activate `/link` command for them to link their username.\n"
             f"- Run `/upload_pairing` to post current pairings, linked players will receive automatic DM.\n"
             f"- Run `/upload_standing` to post final standing, linked players will receive automatic DM.\n"
-            f"- Run `/link_player [player_name] [discord_handle]` to manually link/re-link a player to the user.\n"
+            f"- Run `/force_link_player [player_name] [discord_handle]` to manually link/re-link a player to the user.\n"
             f"- Run `/unlink [player_name]` to manually un-link a player.\n"
             f"- Run `/delete_tournament` to delete the thread and all tournament data after the tournament is finished.\n"
             f"- Need help or want to report a bug? Join our support server: https://discord.gg/yeqYDwBa7t"
@@ -620,14 +620,14 @@ class TournamentAdmin(commands.Cog):
         await thread.delete()
 
     @app_commands.command(
-        name="link_player",
+        name="force_link_player",
         description="(TO) Manually link a Discord member to a player name, overriding any existing claim."
     )
     @app_commands.describe(player_name="Player name to assign", member="Discord member to link to this name")
     @app_commands.autocomplete(player_name=all_player_names_autocomplete)
     @app_commands.default_permissions(manage_guild=True)
     @is_tournament_admin()
-    async def link_player(self, interaction: discord.Interaction, player_name: str, member: discord.Member):
+    async def force_link_player(self, interaction: discord.Interaction, player_name: str, member: discord.Member):
         if not isinstance(interaction.channel, discord.Thread):
             await interaction.response.send_message(
                 "❌ This command can only be used inside a tournament thread.",
@@ -705,6 +705,75 @@ class TournamentAdmin(commands.Cog):
             f"✅ **{player_name}** has been unlinked.",
             ephemeral=True
         )
+
+    @app_commands.command(
+        name="list_player_links",
+        description="(TO) List linked player names and Discord IDs."
+    )
+    @app_commands.default_permissions(manage_guild=True)
+    @is_tournament_admin()
+    async def list_player_links(self, interaction: discord.Interaction):
+        if not isinstance(interaction.channel, discord.Thread):
+            await interaction.response.send_message(
+                "❌ This command can only be used inside a tournament thread.",
+                ephemeral=True
+            )
+            return
+
+        tournament_data = load_tournament_by_thread(
+            interaction.guild_id, interaction.channel.id
+        )
+        if not tournament_data:
+            await interaction.response.send_message(
+                "❌ No active tournament associated with this thread.",
+                ephemeral=True
+            )
+            return
+
+        registrations = tournament_data.get("registrations", {})
+        if not registrations:
+            await interaction.response.send_message(
+                "No players are currently linked.",
+                ephemeral=True
+            )
+            return
+
+        lines = [
+            f"• **{player_name}** — <@{user_id}> (`{user_id}`)"
+            for player_name, user_id in sorted(
+                registrations.items(),
+                key=lambda registration: registration[0].casefold()
+            )
+        ]
+
+        chunks = []
+        current_lines = []
+        current_length = 0
+
+        for line in lines:
+            if current_lines and current_length + len(line) + 1 > 1800:
+                chunks.append("\n".join(current_lines))
+                current_lines = []
+                current_length = 0
+
+            current_lines.append(line)
+            current_length += len(line) + 1
+
+        if current_lines:
+            chunks.append("\n".join(current_lines))
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        for index, chunk in enumerate(chunks):
+            heading = (
+                f"🔗 Linked player accounts ({len(registrations)}):"
+                if index == 0
+                else "🔗 Linked player accounts (continued):"
+            )
+            await interaction.followup.send(
+                f"{heading}\n{chunk}",
+                ephemeral=True
+            )
 
 
 async def setup(bot: commands.Bot):
