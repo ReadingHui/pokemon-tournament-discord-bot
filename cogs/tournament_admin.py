@@ -84,6 +84,7 @@ class TournamentAdmin(commands.Cog):
             f"- Run `/upload_standing` to post final standing, linked players will receive automatic DM.\n"
             f"- Run `/force_link_player [player_name] [discord_handle]` to manually link/re-link a player to the user.\n"
             f"- Run `/unlink [player_name]` to manually un-link a player.\n"
+            f"- Run `/list_player_links` to list all linked players for checking.\n"
             f"- Run `/delete_tournament` to delete the thread and all tournament data after the tournament is finished.\n"
             f"- Need help or want to report a bug? Join our support server: https://discord.gg/yeqYDwBa7t"
         )
