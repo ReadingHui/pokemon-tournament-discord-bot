@@ -51,6 +51,11 @@ class TournamentAdmin(commands.Cog):
             type=discord.ChannelType.public_thread
         )
 
+        creation_message = await interaction.followup.send(
+            f"✅ Tournament **{name}** created! Manage it in thread: {thread.mention}"
+        )
+
+
         tournament_data = {
             "tournament_name": name,
             "guild_id": interaction.guild_id,
@@ -60,15 +65,13 @@ class TournamentAdmin(commands.Cog):
             "players": {},
             "rounds": {},
             "standings": {},
-            "registrations": {}
+            "registrations": {},
+            "creation_message_id": creation_message.id
         }
         save_tournament_by_thread(interaction.guild_id, thread.id, tournament_data)
 
         created_timestamp = int(discord.utils.utcnow().timestamp())
 
-        await interaction.followup.send(
-            f"✅ Tournament **{name}** created! Manage it in thread: {thread.mention}"
-        )
 
         await thread.send(
             f"🏆 **Welcome to {name}!**\n"
@@ -614,11 +617,34 @@ class TournamentAdmin(commands.Cog):
             )
             return
 
-        await interaction.response.send_message("🗑️ Deleting tournament state and removing thread...")
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         thread = interaction.channel
+        creation_message_id = tournament_data.get("creation_message_id")
+
+        if creation_message_id:
+            if thread.parent is None:
+                await interaction.followup.send(
+                    "❌ Could not find the thread's parent channel, so the creation announcement could not be deleted. The tournament was not deleted.",
+                    ephemeral=True
+                )
+                return
+
+            try:
+                creation_message = await thread.parent.fetch_message(creation_message_id)
+            except discord.NotFound:
+                pass  # The announcement was already deleted.
+            else:
+                await creation_message.delete()
+
+        await interaction.followup.send(
+            "🗑️ Tournament data removed; removing the thread...",
+            ephemeral=True
+        )
+
         delete_tournament_by_thread(interaction.guild_id, thread.id)
         await thread.delete()
+
 
     @app_commands.command(
         name="force_link_player",
