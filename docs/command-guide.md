@@ -127,7 +127,7 @@ Uploads updated standings. Run this **inside the tournament thread**.
 
 ---
 
-### `/link_player`
+### `/force_link_player`
 Manually link (or reassign) a Discord member to a player name — overrides any existing claim. Useful for resolving registration conflicts or linking players who don't want to self-register.
 
 - `player_name` — autocompletes from roster/standings/pairings.
@@ -135,7 +135,7 @@ Manually link (or reassign) a Discord member to a player name — overrides any 
 
 **Example:**
 ```
-/link_player player_name: Alex Johnson member: @alexj
+/force_link_player player_name: Alex Johnson member: @alexj
 ```
 > ✅ **Alex Johnson** is now linked to @alexj.
 
@@ -151,6 +151,17 @@ Removes a player-name's Discord link, e.g. to fix a mistaken registration.
 /unlink_player player_name: Alex Johnson
 ```
 > ✅ **Alex Johnson** has been unlinked.
+
+---
+
+### `/list_player_links`
+List all linked players, e.g. to double check the links.
+
+**Example:**
+```
+/list_player_links
+```
+> Respond with an ephemeral list of linked players name and discord handle, only TO can see.
 
 ---
 
