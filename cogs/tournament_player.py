@@ -198,7 +198,7 @@ class TournamentPlayer(commands.Cog):
         if existing_name and existing_name != player_name:
             await interaction.response.send_message(
                 f"❌ You're already registered as **{existing_name}**. "
-                f"Ask a {TO_ROLE_NAME} to reassign you with `/assign_player` if this needs to change.",
+                f"Ask a {TO_ROLE_NAME} to reassign you with `/force_link_player` if this needs to change.",
                 ephemeral=True
             )
             return
@@ -209,7 +209,7 @@ class TournamentPlayer(commands.Cog):
                 f"⚠️ In **{tournament_data.get('tournament_name', 'your tournament')}** "
                 f"({interaction.channel.mention}) — {interaction.user.mention} ({interaction.user}) attempted "
                 f"to register as **{player_name}**, which is already claimed by <@{claimed_by}>. "
-                f"Use `/assign_player` to resolve."
+                f"Use `/force_link_player` to resolve."
             )
             delivered = await send_organizer_dm(interaction.client, tournament_data, alert)
             if not delivered:
@@ -306,14 +306,28 @@ class TournamentPlayer(commands.Cog):
             )
             return
 
-        score_line = f" (`{game_score}`)" if game_score else ""
+        opponent = match_info.get("opponent", "N/A")
+
+        if result.value == "Win":
+            player_rows = f"{'WINNER':<8} {player_name}\n{'LOSER':<8} {opponent}"
+        elif result.value == "Loss":
+            player_rows = f"{'WINNER':<8} {opponent}\n{'LOSER':<8} {player_name}"
+        else:
+            player_rows = (
+                f"{'PLAYER':<8} {player_name}\n"
+                f"{'OPPONENT':<8} {opponent}\n"
+                f"{'RESULT':<8} TIE"
+            )
+
+        score_line = f"Game score: {game_score}\n" if game_score else ""
         report = (
-            f"📣 Match result reported in **{tournament_data.get('tournament_name', 'your tournament')}** "
-            f"({interaction.channel.mention}):\n"
-            f"**Round {current_round} • {division} • Table {match_info.get('table', 'N/A')}**\n"
-            f"{interaction.user.mention} ({interaction.user}) reports **{player_name}** as a "
-            f"**{result.value}**{score_line} vs opponent **{match_info.get('opponent', 'N/A')}**.\n"
-            f"⚠️ Unconfirmed — please verify and enter this result in your tournament software."
+            f"📣 **Match result · Round {current_round}**\n"
+            f"Table {match_info.get('table', 'N/A')} · {division}\n"
+            f"```text\n{player_rows}\n```\n"
+            f"{score_line}"
+            f"Reported by: {interaction.user.mention} ({player_name})\n"
+            f"⚠️ Unconfirmed — Verify and enter this result in your tournament software.\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━"
         )
         delivered = await send_organizer_dm(interaction.client, tournament_data, report)
         if not delivered:
